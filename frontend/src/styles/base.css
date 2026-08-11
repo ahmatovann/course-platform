@@ -1,0 +1,744 @@
+    /* ============================================================
+       ЦВЕТОВАЯ ПАЛИТРА
+       Тема переключается атрибутом data-theme на <html> (тёмная —
+       по умолчанию, светлая — ниже). Кнопка переключения — вверху
+       справа на любой странице. Весь интерфейс построен на этих
+       переменных, поэтому смена темы сразу красит всё приложение.
+       ============================================================ */
+    :root {
+      /* тёмная тема (по умолчанию) — глубокий синий + золото */
+      --bg-grad-1: #101A30;
+      --bg-grad-2: #0B1120;
+      --navy-deep: #0B1120;   /* фон страницы */
+      --navy: #121B30;        /* фон карточек */
+      --navy-soft: #1B2740;   /* фон при наведении / второстепенные блоки */
+      --line: #28324B;        /* границы */
+      --gold: #C9A66B;        /* акцент */
+      --gold-soft: #7C6A47;   /* приглушённый акцент */
+      --text-hi: #F3F5F9;     /* основной текст */
+      --text-mid: #B9C2D6;    /* второстепенный текст */
+      --text-dim: #7C8AA6;    /* подписи, подсказки */
+      --ok: #4FB286;
+      --danger: #D2685A;
+      --on-accent: #14101F;   /* текст поверх золотых кнопок — тёмный в любой теме */
+      --player-1: #1a2440;
+      --player-2: #0d1424;
+      --shadow: 0 20px 50px -25px rgba(0,0,0,.65);
+      --radius: 14px;
+      --font-display: 'Cormorant Garamond', serif;
+      --font-body: 'Inter', sans-serif;
+      --transition: all 0.25s ease;
+      --theme-transition: background-color .35s ease, border-color .35s ease, color .35s ease, box-shadow .35s ease;
+    }
+
+    /* светлая тема — тёплый светлый фон, тот же синий + золото в тексте и акцентах */
+    :root[data-theme="light"] {
+      --bg-grad-1: #FFFFFF;
+      --bg-grad-2: #F6F2E8;
+      --navy-deep: #F8F6F0;   /* фон страницы — светлый */
+      --navy: #FFFFFF;        /* фон карточек — белый */
+      --navy-soft: #F1ECE0;   /* лёгкий тёплый серый при наведении */
+      --line: #E4DCC8;        /* мягкие светлые границы */
+      --gold: #B07F35;        /* акцент чуть темнее для контраста на белом */
+      --gold-soft: #C9A66B;
+      --text-hi: #1E2233;     /* тёмно-синий текст */
+      --text-mid: #4B5468;
+      --text-dim: #8891A3;
+      --ok: #2F9467;
+      --danger: #C4483A;
+      --shadow: 0 16px 40px -22px rgba(30,34,51,.18);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { transition: var(--theme-transition); }
+    body {
+      font-family: var(--font-body);
+      background: radial-gradient(ellipse at top, var(--bg-grad-1) 0%, var(--bg-grad-2) 60%);
+      color: var(--text-hi);
+      min-height: 100vh;
+      transition: var(--theme-transition);
+    }
+    body, .login-card, .card, .sidebar, .mini-card, .modal, .q-block,
+    .module-item, .lesson-item, .toast, table, .material-row, .demo-switch,
+    .theme-toggle, .opt, .side-link {
+      transition: var(--theme-transition), var(--transition);
+    }
+    a { color: inherit; text-decoration: none; }
+    button { font-family: inherit; cursor: pointer; border: none; background: none; }
+    img { max-width: 100%; display: block; }
+    .hidden { display: none !important; }
+
+    .toast-container {
+      position: fixed; bottom: 30px; right: 30px; z-index: 9999;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .toast {
+      padding: 14px 22px; background: var(--navy); border: 1px solid var(--line);
+      border-radius: var(--radius); font-size: 13px; color: var(--text-hi);
+      box-shadow: var(--shadow); animation: slideIn .3s ease;
+    }
+    .toast.success { border-left: 4px solid var(--ok); }
+    .toast.error { border-left: 4px solid var(--danger); }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+
+    .logo {
+      display: flex; align-items: center; gap: 10px;
+      font-family: var(--font-display); font-weight: 600; letter-spacing: .14em;
+      font-size: 20px; text-transform: uppercase; color: var(--text-hi);
+    }
+    .logo .gem { width: 16px; height: 22px; position: relative; display: inline-block; }
+    .logo .gem svg { width: 100%; height: 100%; }
+
+    .demo-switch {
+      position: fixed; top: 14px; right: 14px; z-index: 999;
+      display: flex; gap: 6px; background: var(--navy-soft); padding: 5px;
+      border-radius: 999px; border: 1px solid var(--line); box-shadow: var(--shadow);
+    }
+    .demo-switch button {
+      padding: 8px 16px; border-radius: 999px; background: transparent; color: var(--text-mid);
+      font-size: 12.5px; font-weight: 600; letter-spacing: .03em;
+      transition: var(--transition);
+    }
+    .demo-switch button.active { background: var(--gold); color: var(--on-accent); }
+
+    /* Сегментированный переключатель для блока «Настройки» (тема и т.п.) —
+       та же визуальная идея, что и .demo-switch, но в обычном потоке страницы. */
+    .settings-switch {
+      display: inline-flex; gap: 6px; background: var(--navy-soft); padding: 5px;
+      border-radius: 999px; border: 1px solid var(--line);
+    }
+    .settings-switch button {
+      padding: 8px 18px; border-radius: 999px; background: transparent; color: var(--text-mid);
+      font-size: 12.5px; font-weight: 600; letter-spacing: .03em; transition: var(--transition);
+    }
+    .settings-switch button.active { background: var(--gold); color: var(--on-accent); }
+    .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+    .settings-row:last-child { border-bottom: none; }
+    .settings-row .lbl { font-size: 13px; color: var(--text-hi); }
+    .settings-row .lbl small { display: block; color: var(--text-dim); font-size: 11px; margin-top: 2px; }
+
+    .login-screen {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
+    }
+    .login-card {
+      width: 100%; max-width: 400px; background: var(--navy); border: 1px solid var(--line);
+      border-radius: 20px; padding: 44px 36px; box-shadow: var(--shadow);
+    }
+    .login-card .logo { justify-content: center; margin-bottom: 6px; }
+    .login-sub { text-align: center; color: var(--text-dim); font-size: 13px; margin-bottom: 32px; letter-spacing: .04em; }
+    .field { margin-bottom: 18px; }
+    .field label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 7px; letter-spacing: .03em; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 12px 14px; background: var(--navy-deep); border: 1px solid var(--line);
+      border-radius: 10px; color: var(--text-hi); font-size: 14px; outline: none; transition: var(--transition);
+      font-family: inherit;
+    }
+    .field textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--gold); }
+    .field input:disabled, .field select:disabled { opacity: .6; cursor: not-allowed; }
+    .field .hint { font-size: 11px; color: var(--text-dim); margin-top: 6px; }
+    .btn-primary {
+      width: 100%; padding: 13px; background: linear-gradient(135deg, var(--gold), #B08D53);
+      color: var(--on-accent); font-weight: 700; border-radius: 10px; font-size: 14px; letter-spacing: .02em;
+      margin-top: 6px; transition: var(--transition);
+    }
+    .btn-primary:hover { transform: scale(1.01); }
+    .btn-ghost {
+      width: 100%; padding: 12px; background: transparent; border: 1px solid var(--line); color: var(--text-mid);
+      border-radius: 10px; font-size: 13px; margin-top: 10px; transition: var(--transition);
+    }
+    .btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
+    .login-note {
+      margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line);
+      font-size: 11.5px; color: var(--text-dim); line-height: 1.6; text-align: center;
+    }
+    .invite-field { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 16px; }
+
+    /* Регистрация: имя и фамилия в одну строку, компактнее и понятнее */
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
+    .field-row .field { margin-bottom: 0; }
+
+    /* Регистрация: карточка формы + панель «что вас ждёт» рядом */
+    .auth-layout {
+      display: flex; align-items: flex-start; justify-content: center;
+      gap: 56px; flex-wrap: wrap; max-width: 820px; width: 100%; margin: 0 auto;
+    }
+    .features-panel { width: 100%; max-width: 320px; padding: 10px 4px; }
+    .features-panel h2 {
+      font-family: var(--font-display); font-size: 22px; font-weight: 600;
+      margin-bottom: 6px; color: var(--text-hi);
+    }
+    .features-sub { color: var(--text-dim); font-size: 12.5px; margin-bottom: 24px; line-height: 1.5; }
+    .feature-item { display: flex; gap: 14px; margin-bottom: 20px; align-items: flex-start; }
+    .feature-icon {
+      width: 38px; height: 38px; border-radius: 10px; background: var(--navy); border: 1px solid var(--line);
+      display: flex; align-items: center; justify-content: center; color: var(--gold); font-size: 16px; flex-shrink: 0;
+    }
+    .feature-item h4 { font-size: 14px; font-weight: 600; margin-bottom: 2px; color: var(--text-hi); }
+    .feature-item p { font-size: 12.5px; color: var(--text-dim); line-height: 1.5; }
+
+    .app { display: none; min-height: 100vh; }
+    .app.active { display: flex; }
+    .sidebar {
+      width: 248px; flex-shrink: 0; background: var(--navy); border-right: 1px solid var(--line);
+      padding: 22px 16px; display: flex; flex-direction: column; gap: 4px;
+      transition: var(--transition);
+    }
+    .sidebar .logo { padding: 6px 10px 24px; }
+    .side-section-title {
+      font-size: 10.5px; text-transform: uppercase; letter-spacing: .12em; color: var(--text-dim);
+      padding: 16px 10px 6px;
+    }
+    .side-link {
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px;
+      color: var(--text-mid); font-size: 13.5px; font-weight: 500; transition: var(--transition);
+      cursor: pointer;
+    }
+    .side-link:hover { background: var(--navy-soft); color: var(--text-hi); }
+    .side-link.active { background: var(--navy-soft); color: var(--gold); }
+    .side-link .icon { width: 17px; text-align: center; opacity: .8; }
+    .side-footer {
+      margin-top: auto; padding: 14px 12px; border-top: 1px solid var(--line);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .avatar {
+      width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--gold), #8C6F3E);
+      display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--on-accent); font-size: 13px;
+    }
+    .side-footer .name { font-size: 13px; font-weight: 600; }
+    .side-footer .role { font-size: 11px; color: var(--text-dim); }
+    .bell-wrap { margin-left: auto; }
+    .logout-btn { color: var(--text-dim); font-size: 16px; background: none; transition: var(--transition); }
+    .logout-btn:hover { color: var(--danger); }
+
+    .main { flex: 1; padding: 30px 40px; overflow-y: auto; }
+    .main-header {
+      display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 28px; flex-wrap: wrap; gap: 14px;
+    }
+    .main-header h1 { font-family: var(--font-display); font-size: 30px; font-weight: 600; }
+    .main-header p { color: var(--text-dim); font-size: 13px; margin-top: 4px; }
+
+    .view { display: none; animation: fadeUp .3s ease; }
+    .view.active { display: block; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
+    .card {
+      background: var(--navy); border: 1px solid var(--line); border-radius: var(--radius);
+      padding: 20px; position: relative; transition: var(--transition); overflow: hidden;
+    }
+    .card:hover { border-color: var(--gold-soft); transform: translateY(-2px); }
+    .card .badge {
+      position: absolute; top: 16px; right: 16px; font-size: 10.5px; padding: 4px 9px; border-radius: 999px;
+      font-weight: 700; letter-spacing: .03em;
+    }
+    .badge.ok { background: rgba(79,178,134,.15); color: var(--ok); }
+    .badge.locked { background: rgba(210,104,90,.15); color: var(--danger); }
+    .card h3 { font-size: 16px; margin: 10px 0 6px; font-weight: 600; overflow-wrap: anywhere; }
+    .card p.desc { color: var(--text-dim); font-size: 12.5px; line-height: 1.5; margin-bottom: 14px; overflow-wrap: anywhere; word-break: break-word; }
+    .progress-bar { height: 5px; background: var(--navy-deep); border-radius: 99px; overflow: hidden; margin-bottom: 8px; }
+    .progress-bar span { display: block; height: 100%; background: var(--gold); transition: width .5s ease; }
+    .progress-label { font-size: 11px; color: var(--text-dim); }
+
+    .module-list { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+    .module-item {
+      display: flex; align-items: center; gap: 14px; padding: 14px 16px; background: var(--navy);
+      border: 1px solid var(--line); border-radius: 12px; transition: var(--transition);
+    }
+    .module-item.locked { opacity: .55; cursor: not-allowed; }
+    .module-item.unlocked { cursor: pointer; }
+    .module-item.unlocked:hover { border-color: var(--gold-soft); background: var(--navy-soft); }
+    .module-item .num {
+      width: 34px; height: 34px; border-radius: 9px; background: var(--navy-soft);
+      display: flex; align-items: center; justify-content: center; font-family: var(--font-display);
+      font-weight: 700; color: var(--gold); flex-shrink: 0;
+    }
+    .module-item .info { flex: 1; }
+    .module-item .info h4 { font-size: 14.5px; font-weight: 600; margin-bottom: 2px; }
+    .module-item .info span { font-size: 12px; color: var(--text-dim); }
+    .module-item .status-icon { font-size: 17px; }
+
+    /* Простые CSS-диаграммы (без сторонних библиотек) для статистики прогресса. */
+    .chart-bar-row { margin: 8px 0; }
+    .chart-bar-label { font-size: 12px; color: var(--text-mid); display: block; margin-bottom: 4px; }
+    .chart-bar-track { height: 8px; border-radius: 999px; background: var(--navy-deep); overflow: hidden; }
+    .chart-bar-track.slim { height: 4px; margin-top: 6px; max-width: 260px; }
+    .chart-bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--gold-soft), var(--gold)); transition: width .4s ease; }
+
+    /* История попыток теста под карточкой модуля в «Прогрессе». */
+    .module-item-wrap { display: flex; flex-direction: column; gap: 0; }
+    .attempts-box { margin: 4px 0 0 48px; }
+    .attempts-toggle { background: none; color: var(--text-dim); font-size: 11.5px; padding: 4px 0; transition: var(--transition); }
+    .attempts-toggle:hover { color: var(--gold); }
+    .attempts-table { margin-top: 6px; font-size: 12px; }
+    .attempts-table th { text-align: left; color: var(--text-dim); font-weight: 500; padding: 4px 10px 4px 0; }
+    .attempts-table td { padding: 4px 10px 4px 0; color: var(--text-mid); }
+
+    .lesson-list { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+    .lesson-item {
+      display: flex; align-items: center; gap: 14px; padding: 12px 16px; background: var(--navy-soft);
+      border: 1px solid var(--line); border-radius: 10px; cursor: pointer; transition: var(--transition);
+    }
+    .lesson-item:hover { border-color: var(--gold-soft); }
+    .lesson-item .num { width: 28px; height: 28px; border-radius: 6px; background: var(--navy); display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--gold); flex-shrink: 0; font-size: 13px; }
+    .lesson-item .info { flex: 1; }
+    .lesson-item .info h4 { font-size: 14px; font-weight: 500; }
+    .lesson-item .info span { font-size: 12px; color: var(--text-dim); }
+    .lesson-item .status-icon { font-size: 16px; }
+
+    .lesson-layout { display: grid; grid-template-columns: 1fr 300px; gap: 26px; }
+    .player-box {
+      aspect-ratio: 16/9; background: linear-gradient(135deg, var(--player-1), var(--player-2)); border-radius: var(--radius);
+      border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;
+    }
+    .player-box .play-btn {
+      width: 64px; height: 64px; border-radius: 50%; background: var(--gold); color: var(--on-accent);
+      display: flex; align-items: center; justify-content: center; font-size: 22px;
+      transition: var(--transition);
+    }
+    .player-box .play-btn:hover { transform: scale(1.05); }
+    .video-mute-btn {
+      position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; border-radius: 50%;
+      background: rgba(11,17,32,.72); border: 1px solid rgba(255,255,255,.18); color: #fff;
+      display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 5;
+      transition: var(--transition);
+    }
+    .video-mute-btn:hover { background: rgba(11,17,32,.9); border-color: var(--gold); color: var(--gold); }
+    .video-watermark {
+      position: absolute; inset: 0; pointer-events: none; z-index: 4; overflow: hidden;
+      display: flex; flex-wrap: wrap; align-content: space-between; justify-content: space-between;
+      padding: 10%; opacity: .16; transform: rotate(-18deg) scale(1.3);
+    }
+    .video-watermark span {
+      color: #fff; font-size: 12px; font-weight: 600; letter-spacing: .04em; white-space: nowrap;
+      text-shadow: 0 1px 2px rgba(0,0,0,.5);
+    }
+    .comment-timestamp-badge {
+      display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; padding: 2px 8px;
+      border-radius: 999px; background: rgba(201,166,107,.16); color: var(--gold); font-size: 10.5px; font-weight: 700;
+    }
+    .comment-timestamp-badge:hover { background: rgba(201,166,107,.28); }
+    .comment-attach-row { margin: 10px 0 -4px; }
+    .comment-attach-btn {
+      padding: 7px 12px; border-radius: 999px; background: var(--navy-soft); border: 1px solid var(--line);
+      color: var(--text-mid); font-size: 11.5px;
+    }
+    .comment-attach-btn:hover { border-color: var(--gold); color: var(--gold); }
+    .comment-attach-badge {
+      display: inline-flex; align-items: center; gap: 8px; padding: 7px 10px 7px 12px; border-radius: 999px;
+      background: rgba(201,166,107,.16); color: var(--gold); font-size: 11.5px; font-weight: 700;
+    }
+    .comment-attach-badge button { color: var(--gold); font-size: 14px; line-height: 1; }
+    .video-extras { display: flex; gap: 14px; margin-top: 14px; flex-wrap: wrap; }
+    .video-poster-thumb { width: 140px; aspect-ratio: 16/9; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); flex-shrink: 0; }
+    .video-audio-alt { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 6px; justify-content: center; }
+    .video-audio-alt-label { font-size: 11.5px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; }
+    .video-audio-alt audio { width: 100%; }
+    .lesson-actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+    .dl-btn {
+      display: flex; align-items: center; gap: 8px; padding: 10px 15px; background: var(--navy-soft);
+      border: 1px solid var(--line); border-radius: 10px; font-size: 12.5px; color: var(--text-hi); font-weight: 600;
+      transition: var(--transition);
+    }
+    .dl-btn:hover { border-color: var(--gold); color: var(--gold); }
+    .materials-box { margin-top: 22px; }
+    .materials-box h4 { font-size: 14px; margin-bottom: 10px; color: var(--text-mid); }
+    .material-row {
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--navy);
+      border: 1px solid var(--line); border-radius: 9px; margin-bottom: 8px; font-size: 12.5px;
+    }
+    .material-row .type-icon { width: 26px; height: 26px; border-radius: 6px; background: var(--navy-soft); display: flex; align-items: center; justify-content: center; font-size: 12px; }
+    .material-row .name { flex: 1; }
+    .kind-label { display: inline-block; margin-left: 8px; font-size: 10.5px; color: var(--text-dim); font-weight: 400; }
+    .material-row .dl { color: var(--gold); font-size: 12px; font-weight: 600; cursor: pointer; }
+
+    .lesson-description { font-size: 13.5px; color: var(--text-mid); line-height: 1.6; margin-top: 16px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .comments-box { margin-top: 26px; }
+    .comments-box h4 { font-size: 14px; margin-bottom: 14px; color: var(--text-mid); }
+    .comment-time { font-weight: 400; color: var(--text-dim); font-size: 10.5px; margin-left: 6px; }
+
+    /* ===== Чаты — двухпанельный интерфейс в духе WhatsApp/Telegram:
+       слева список чатов, справа переписка. Поле ввода закреплено внизу
+       правой панели и не двигается — скроллятся только сообщения. ===== */
+    .chat-shell {
+      display: grid; grid-template-columns: 320px 1fr; grid-template-rows: minmax(0, 1fr);
+      height: calc(100vh - 176px); min-height: 420px;
+      background: var(--navy); border: 1px solid var(--line); border-radius: var(--radius);
+      overflow: hidden; box-shadow: var(--shadow);
+    }
+    /* min-height: 0 обязательна для дочерних элементов грида — иначе они
+       растягиваются по содержимому (списку сообщений) и «вылезают» за
+       пределы панели вместо того, чтобы прокручиваться внутри себя. */
+    .chat-threads { border-right: 1px solid var(--line); overflow-y: auto; min-height: 0; }
+    .chat-thread-row {
+      display: flex; gap: 12px; padding: 14px 16px; cursor: pointer; border-bottom: 1px solid var(--line);
+      transition: var(--transition);
+    }
+    .chat-thread-row:hover { background: var(--navy-soft); }
+    .chat-thread-row.active { background: var(--navy-soft); }
+    .chat-thread-row .avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--gold), #8C6F3E); color: var(--on-accent); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+    .chat-thread-info { flex: 1; min-width: 0; }
+    .chat-thread-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+    .chat-thread-title { font-size: 13.5px; font-weight: 600; color: var(--text-hi); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-thread-time { font-size: 10.5px; color: var(--text-dim); flex-shrink: 0; }
+    .chat-thread-preview { display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 11.5px; color: var(--text-dim); overflow: hidden; }
+    .chat-thread-preview span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-thread-preview .badge { flex-shrink: 0; padding: 1px 7px; font-size: 9.5px; }
+
+    .chat-conversation { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+    .chat-conv-header { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+    .chat-back { display: none; font-size: 16px; color: var(--text-mid); }
+    .chat-conv-title { font-size: 14.5px; font-weight: 600; color: var(--text-hi); }
+    .chat-conv-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+    .chat-empty-state { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text-dim); font-size: 13px; }
+
+    /* Только этот блок скроллится — поле ввода ниже остаётся на месте. */
+    .chat-messages { flex: 1; min-height: 0; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 4px; }
+    .chat-date-sep { display: flex; justify-content: center; margin: 14px 0; }
+    .chat-date-sep span { background: var(--navy-soft); color: var(--text-dim); font-size: 11px; padding: 4px 12px; border-radius: 999px; }
+    .chat-bubble-row { display: flex; margin: 3px 0; }
+    .chat-bubble-row.mine { justify-content: flex-end; }
+    .chat-bubble {
+      position: relative; max-width: 68%; padding: 9px 26px 7px 12px; border-radius: 14px; background: var(--navy-soft);
+      border-bottom-left-radius: 4px;
+    }
+    .chat-bubble-row.mine .chat-bubble {
+      background: linear-gradient(135deg, rgba(201,166,107,.22), rgba(201,166,107,.12));
+      border-bottom-left-radius: 14px; border-bottom-right-radius: 4px;
+    }
+    .chat-bubble-who { font-size: 11px; font-weight: 700; color: var(--gold); margin-bottom: 2px; }
+    .chat-bubble-text { font-size: 13.5px; color: var(--text-hi); line-height: 1.45; overflow-wrap: anywhere; word-break: break-word; white-space: pre-wrap; }
+    .chat-bubble-time { font-size: 10px; color: var(--text-dim); text-align: right; margin-top: 3px; }
+    .chat-bubble-audio { display: block; max-width: 240px; width: 60vw; height: 34px; margin: 2px 0; }
+    .chat-bubble-deleted { font-size: 12.5px; color: var(--text-dim); font-style: italic; margin: 0; }
+    .chat-bubble-file {
+      display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 9px; background: var(--navy);
+      border: 1px solid var(--line); text-decoration: none; color: var(--text-hi); margin: 2px 0; max-width: 220px;
+    }
+    .chat-bubble-file-thumb { width: 32px; height: 32px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
+    .chat-bubble-file-icon { font-size: 16px; flex-shrink: 0; }
+    .chat-bubble-file-name { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-bubble-foot { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+    .chat-bubble-fav-mark { font-size: 11px; color: var(--gold); }
+    .chat-bubble-menu-btn {
+      position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; border-radius: 50%;
+      background: transparent; color: var(--text-dim); font-size: 13px; line-height: 1;
+    }
+    .chat-bubble-menu-btn:hover { background: rgba(255,255,255,.08); color: var(--text-hi); }
+    .chat-bubble-menu {
+      position: absolute; top: 22px; right: 2px; z-index: 6; background: var(--navy); border: 1px solid var(--line);
+      border-radius: 10px; box-shadow: 0 8px 20px rgba(0,0,0,.35); overflow: hidden; min-width: 160px;
+    }
+    .chat-bubble-menu button {
+      display: block; width: 100%; text-align: left; padding: 9px 12px; font-size: 12.5px; color: var(--text-hi);
+      background: transparent;
+    }
+    .chat-bubble-menu button:hover { background: var(--navy-soft); }
+    .chat-bubble-menu button.danger { color: #e0665f; }
+
+    /* Поле ввода — фиксировано внизу панели, не двигается при прокрутке. */
+    .chat-input-bar {
+      flex-shrink: 0; display: flex; gap: 10px; align-items: center; padding: 12px 16px;
+      border-top: 1px solid var(--line);
+    }
+    .chat-input-bar input {
+      flex: 1; padding: 11px 15px; background: var(--navy-deep); border: 1px solid var(--line);
+      border-radius: 999px; color: var(--text-hi); font-size: 13.5px; outline: none; transition: var(--transition);
+    }
+    .chat-input-bar input:focus { border-color: var(--gold); }
+    .chat-input-bar button {
+      width: 38px; height: 38px; border-radius: 50%; background: var(--gold); color: var(--on-accent);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: var(--transition);
+    }
+    .chat-input-bar button:hover { transform: scale(1.05); }
+    .chat-input-bar .mic-btn { background: var(--navy-soft); color: var(--text-mid); }
+    .chat-input-bar .dl-btn { width: auto; height: auto; border-radius: 999px; padding: 8px 14px; }
+
+    /* Панель записи голосового сообщения заменяет обычный инпут, но не
+       меняет высоту/положение .chat-input-bar — только его содержимое. */
+    .chat-input-bar.recording { color: var(--text-mid); font-size: 13px; }
+    .record-dot {
+      width: 10px; height: 10px; border-radius: 50%; background: var(--danger); flex-shrink: 0;
+      animation: recordPulse 1.1s ease-in-out infinite;
+    }
+    @keyframes recordPulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+    .record-time { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--text-hi); }
+    .record-hint { flex: 1; color: var(--text-dim); font-size: 12.5px; }
+
+    @media(max-width: 760px) {
+      .chat-shell { grid-template-columns: 1fr; height: calc(100vh - 220px); }
+      .chat-threads.mobile-hidden, .chat-conversation.mobile-hidden { display: none; }
+      .chat-back { display: flex; }
+    }
+
+    .news-list { display: flex; flex-direction: column; gap: 10px; }
+    .news-item {
+      background: var(--navy); border: 1px solid var(--line); border-radius: var(--radius);
+      padding: 16px 18px; cursor: pointer; transition: var(--transition);
+    }
+    .news-item:hover { border-color: var(--gold-soft); }
+    .news-item-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+    .news-item-top h4 { font-size: 15px; font-weight: 600; }
+    .news-date { font-size: 12px; color: var(--text-dim); white-space: nowrap; flex-shrink: 0; }
+    .news-excerpt { font-size: 12.5px; color: var(--text-dim); line-height: 1.5; margin-top: 8px; overflow-wrap: anywhere; }
+    .news-item-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+    .news-more { font-size: 12px; color: var(--gold); font-weight: 600; background: none; }
+    .news-full-text { font-size: 13.5px; color: var(--text-mid); line-height: 1.6; margin-top: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+    .sidebar-panel { display: flex; flex-direction: column; gap: 20px; }
+    .mini-card { background: var(--navy); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
+    .mini-card h4 { font-size: 13.5px; margin-bottom: 12px; color: var(--text-mid); }
+    /* Список комментариев прокручивается сам по себе (новые уводят старые
+       вверх и всегда видны снизу) — поле ввода под списком не двигается. */
+    /* Высота ФИКСИРОВАННАЯ (не max-height) — иначе пока комментариев мало,
+       блок растёт вместе с ними и «толкает» поле ввода вниз по странице.
+       С фиксированной высотой поле ввода не двигается вообще никогда,
+       с первого комментария, как в WhatsApp. */
+    .comments-list { height: 320px; overflow-y: auto; padding-right: 4px; }
+    .comment { display: flex; gap: 9px; margin-bottom: 14px; }
+    .comment .avatar { width: 26px; height: 26px; font-size: 11px; }
+    .comment .body { font-size: 12px; }
+    .comment .who { font-weight: 600; color: var(--text-hi); }
+    .comment .txt { color: var(--text-dim); margin-top: 2px; line-height: 1.5; overflow-wrap: anywhere; word-break: break-word; }
+    .comment-input {
+      display: flex; gap: 8px; margin-top: 6px;
+    }
+    .comment-input input {
+      flex: 1; padding: 9px 12px; background: var(--navy-deep); border: 1px solid var(--line);
+      border-radius: 9px; color: var(--text-hi); font-size: 12.5px; outline: none;
+    }
+    .comment-input button { padding: 9px 14px; background: var(--gold); color: var(--on-accent); border-radius: 9px; font-size: 12px; font-weight: 700; }
+
+    .test-box { max-width: 720px; margin: 0 auto; }
+    .q-block {
+      background: var(--navy); border: 1px solid var(--line); border-radius: var(--radius);
+      padding: 20px; margin-bottom: 14px;
+    }
+    .q-block .q-title { font-size: 14.5px; font-weight: 600; margin-bottom: 14px; }
+    .opt {
+      display: flex; align-items: center; gap: 10px; padding: 11px 14px; border: 1px solid var(--line);
+      border-radius: 9px; margin-bottom: 8px; font-size: 13px; cursor: pointer; transition: var(--transition);
+    }
+    .opt:hover { border-color: var(--gold-soft); }
+    .opt input { accent-color: var(--gold); }
+    .opt.selected { border-color: var(--gold); background: rgba(201,166,107,.08); }
+    .opt input[type="text"] {
+      background: transparent; border: none; color: var(--text-hi); width: 100%; outline: none;
+    }
+
+    .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 12px; }
+
+    /* Поиск и фильтры в списках админки — переносятся на новую строку
+       на узких экранах, поэтому никогда не наезжают на соседние кнопки. */
+    .search-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .search-input {
+      flex: 1; min-width: 200px; padding: 10px 14px; background: var(--navy); border: 1px solid var(--line);
+      border-radius: 10px; color: var(--text-hi); font-size: 13px; outline: none; transition: var(--transition);
+    }
+    .search-input:focus { border-color: var(--gold); }
+    .search-row select { padding: 10px 14px; background: var(--navy); border: 1px solid var(--line);
+      border-radius: 10px; color: var(--text-hi); font-size: 13px; }
+
+    /* Колокольчик уведомлений в подвале бокового меню */
+    .bell-wrap { position: relative; }
+    .bell-btn { position: relative; color: var(--text-mid); background: none; padding: 6px; border-radius: 8px; transition: var(--transition); display: inline-flex; align-items: center; justify-content: center; }
+    .bell-btn:hover { color: var(--gold); background: var(--navy-soft); }
+    .bell-icon { width: 18px; height: 18px; }
+    .bell-badge {
+      position: absolute; top: -2px; right: -2px; min-width: 15px; height: 15px; padding: 0 3px;
+      border-radius: 999px; background: var(--danger); color: #fff; font-size: 10px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; line-height: 1;
+    }
+    /* Панель телепортирована в <body> (см. NotificationBell.vue), поэтому
+       позиционируется как fixed с координатами, которые считает сам компонент —
+       так она гарантированно поверх любой страницы/раздела и не обрезается
+       контейнерами сайдбара/карточек с overflow. */
+    .bell-dropdown {
+      position: fixed; width: 320px; max-width: calc(100vw - 24px);
+      max-height: 360px; overflow-y: auto;
+      background: var(--navy); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow);
+      z-index: 100000; padding: 8px;
+    }
+    .bell-dropdown-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; font-size: 12.5px; font-weight: 700; color: var(--text-hi); }
+    .bell-mark-all { font-size: 11px; color: var(--gold); font-weight: 600; background: none; }
+    .bell-empty { padding: 20px 10px; text-align: center; color: var(--text-dim); font-size: 12.5px; }
+    .bell-item { padding: 10px; border-radius: 10px; cursor: pointer; transition: var(--transition); }
+    .bell-item:hover { background: var(--navy-soft); }
+    .bell-item.unread { background: rgba(201,166,107,.07); }
+    .bell-item-text { font-size: 12.5px; color: var(--text-hi); line-height: 1.4; overflow-wrap: anywhere; word-break: break-word; }
+    .bell-item-time { font-size: 10.5px; color: var(--text-dim); margin-top: 3px; }
+    table { width: 100%; border-collapse: collapse; background: var(--navy); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+    thead th {
+      text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim);
+      padding: 14px 18px; border-bottom: 1px solid var(--line); font-weight: 600;
+    }
+    tbody td { padding: 14px 18px; font-size: 13.5px; border-bottom: 1px solid var(--line); }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: var(--navy-soft); }
+    .status-dot { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; }
+    .status-dot::before { content: ''; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .status-dot.active { color: var(--ok); }
+    .status-dot.active::before { background: var(--ok); }
+    .status-dot.inactive { color: var(--text-dim); }
+    .status-dot.inactive::before { background: var(--text-dim); }
+    /* Клик по самому статусу переключает активацию/деактивацию — без
+       отдельной дублирующей кнопки рядом. */
+    .status-toggle {
+      background: none; border: 1px solid transparent; border-radius: 999px; padding: 5px 12px 5px 10px;
+      cursor: pointer; transition: var(--transition);
+    }
+    .status-toggle:hover { border-color: currentColor; background: var(--navy-soft); }
+    .status-toggle:active { transform: scale(.97); }
+    .row-actions button { background: none; color: var(--text-dim); font-size: 13px; margin-right: 10px; transition: var(--transition); }
+    .row-actions button:hover { color: var(--gold); }
+
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(4,7,15,.7); backdrop-filter: blur(3px);
+      display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      width: 100%; max-width: 600px; background: var(--navy); border: 1px solid var(--line);
+      border-radius: 18px; padding: 30px; box-shadow: var(--shadow);
+      animation: fadeUp .3s ease;
+      max-height: 90vh; overflow-y: auto;
+    }
+    .modal h3 { font-family: var(--font-display); font-size: 22px; margin-bottom: 6px; }
+    .modal p.mod-sub { color: var(--text-dim); font-size: 12.5px; margin-bottom: 22px; }
+    .modal-footer { display: flex; gap: 10px; margin-top: 20px; }
+    .modal-footer .btn-ghost { width: auto; flex: 1; }
+    .modal-footer .btn-primary { flex: 1; }
+    .gen-result {
+      background: var(--navy-deep); border: 1px solid var(--gold-soft); border-radius: 10px;
+      padding: 14px; font-size: 12.5px; color: var(--text-mid); line-height: 1.7; margin-top: 16px; display: none;
+    }
+    .gen-result.show { display: block; }
+    .gen-result b { color: var(--gold); }
+
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--line);
+    }
+    .toggle-row:last-child { border-bottom: none; }
+    .toggle-row .lbl { font-size: 13px; }
+    .toggle-row .lbl small { display: block; color: var(--text-dim); font-size: 11px; margin-top: 2px; }
+    .switch { position: relative; width: 40px; height: 22px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .switch .slider {
+      position: absolute; inset: 0; background: var(--navy-deep); border: 1px solid var(--line);
+      border-radius: 99px; transition: var(--transition); cursor: pointer;
+    }
+    .switch .slider::before {
+      content: ''; position: absolute; width: 16px; height: 16px; left: 2px; top: 2px;
+      background: var(--text-dim); border-radius: 50%; transition: var(--transition);
+    }
+    .switch input:checked + .slider { background: rgba(201,166,107,.25); border-color: var(--gold); }
+    .switch input:checked + .slider::before { transform: translateX(18px); background: var(--gold); }
+
+    .hamburger {
+      display: none; background: none; color: var(--text-hi); font-size: 24px;
+      padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px;
+    }
+    .sidebar.open { display: flex !important; }
+    @media(max-width: 860px) {
+      .hamburger { display: block; }
+      .app.active { flex-direction: column; }
+      /* Мобильная версия: боковое меню превращается в верхнюю панель.
+         Кнопка ☰ остаётся видимой всегда, а сами пункты меню
+         раскрываются по нажатию — раньше они были скрыты вместе с
+         кнопкой и открыть меню было невозможно. */
+      .sidebar {
+        width: 100%; flex-direction: row; align-items: center; flex-wrap: wrap;
+        overflow-x: auto; padding: 10px 12px; gap: 8px;
+        display: flex;
+      }
+      .sidebar .logo, .side-section-title, .side-footer { display: none; }
+      .side-link { display: none; flex-shrink: 0; }
+      .sidebar.open .side-link { display: flex; }
+      .main { padding: 20px; }
+      .lesson-layout { grid-template-columns: 1fr; }
+      .demo-switch { top: 8px; right: 8px; padding: 4px; }
+      .demo-switch button { font-size: 10px; padding: 5px 10px; }
+    }
+    @media(max-width: 480px) {
+      .login-card { padding: 28px 20px; }
+      .main { padding: 16px; }
+      .modal { padding: 20px; }
+      .field-row { grid-template-columns: 1fr; gap: 18px; }
+    }
+    .mt-8 { margin-top: 8px; }
+    .gap-8 { gap: 8px; }
+    .flex { display: flex; align-items: center; }
+
+/* ===== Анимация экрана входа ===== */
+@keyframes loginCardIn {
+  from { opacity: 0; transform: translateY(28px) scale(.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.login-card {
+  animation: loginCardIn .65s cubic-bezier(.16,1,.3,1) both;
+}
+@keyframes loginCardOut {
+  to { opacity: 0; transform: translateY(-16px) scale(.97); }
+}
+.login-card.leaving {
+  animation: loginCardOut .32s ease forwards;
+}
+@keyframes gemPulse {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(201,166,107,0)); }
+  50% { filter: drop-shadow(0 0 7px rgba(201,166,107,.6)); }
+}
+.login-card .logo .gem svg { animation: gemPulse 2.6s ease-in-out infinite; }
+
+.login-card > .field, .login-card > .field-row {
+  opacity: 0;
+  animation: loginCardIn .5s cubic-bezier(.16,1,.3,1) .1s both;
+}
+.features-panel { animation: mainIn .6s cubic-bezier(.16,1,.3,1) .2s both; }
+
+.spinner {
+  display: inline-block; width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid rgba(20,16,31,.35); border-top-color: var(--on-accent);
+  animation: spin .7s linear infinite; margin-right: 8px; vertical-align: -2px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== Переключатель темы (тёмная / светлая) — только на входе и регистрации ===== */
+.theme-toggle {
+  position: fixed; top: 16px; right: 16px; z-index: 1100;
+  width: 42px; height: 42px; display: flex; align-items: center; justify-content: center;
+  background: var(--navy); border: 1px solid var(--line);
+  border-radius: 50%; box-shadow: var(--shadow);
+  color: var(--text-mid);
+  transition: var(--theme-transition), var(--transition);
+}
+.theme-toggle:hover { border-color: var(--gold); color: var(--gold); transform: translateY(-1px); }
+.theme-toggle-icon { font-size: 17px; line-height: 1; }
+@media (max-width: 480px) {
+  .theme-toggle { top: 10px; right: 10px; width: 38px; height: 38px; }
+}
+
+/* ===== Анимация появления интерфейса на десктопе (веб-версии) ===== */
+/* Срабатывает каждый раз, когда открывается основной экран приложения:
+   боковое меню выезжает слева, основной контент мягко всплывает и
+   проявляется — вместо резкого появления страницы. */
+@keyframes sidebarIn {
+  from { opacity: 0; transform: translateX(-18px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes mainIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.app.active .sidebar { animation: sidebarIn .5s cubic-bezier(.16,1,.3,1) both; }
+.app.active .main { animation: mainIn .5s cubic-bezier(.16,1,.3,1) .08s both; }
+
+/* Плавный переход между страницами (роутами) во всём приложении */
+.page-enter-active { transition: opacity .28s ease, transform .28s cubic-bezier(.16,1,.3,1); }
+.page-leave-active { transition: opacity .16s ease; }
+.page-enter-from { opacity: 0; transform: translateY(10px); }
+.page-leave-to { opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .login-card, .login-card .field, .app.active .sidebar, .app.active .main,
+  .page-enter-active, .page-leave-active, .view { animation: none !important; transition: none !important; }
+}
