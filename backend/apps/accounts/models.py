@@ -8,6 +8,7 @@ class User(AbstractUser):
         STUDENT = 'student', 'Ученик'
 
     email = models.EmailField(unique=True)
+    avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
     role = models.CharField(max_length=10, choices=Role.choices, default=Role.STUDENT)
     phone = models.CharField(max_length=32, blank=True, default='')
     phone_verified = models.BooleanField(default=False)

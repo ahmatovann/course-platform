@@ -488,6 +488,29 @@
     .sidebar-panel { display: flex; flex-direction: column; gap: 20px; }
     .mini-card { background: var(--navy); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
     .mini-card h4 { font-size: 13.5px; margin-bottom: 12px; color: var(--text-mid); }
+
+    .profile-layout { display: flex; flex-direction: column; gap: 18px; max-width: 460px; }
+    .profile-card { width: 100%; }
+    .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+    .profile-avatar-row { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+    .profile-avatar {
+      position: relative; width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0; cursor: pointer;
+      background: linear-gradient(135deg, var(--gold), #8C6F3E); color: var(--on-accent);
+      display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px;
+      overflow: hidden;
+    }
+    .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .profile-avatar-edit {
+      position: absolute; right: -2px; bottom: -2px; width: 22px; height: 22px; border-radius: 50%;
+      background: var(--navy); border: 1px solid var(--line); color: var(--gold);
+      display: flex; align-items: center; justify-content: center; font-size: 11px;
+    }
+    .profile-avatar-hint { display: flex; flex-direction: column; gap: 4px; }
+    .profile-avatar-hint strong { font-size: 14px; color: var(--text-hi); }
+    .link-btn { background: none; padding: 0; color: var(--gold); font-size: 12px; text-align: left; width: auto; }
+    .link-btn:hover { text-decoration: underline; }
+    .profile-actions { display: flex; flex-direction: column; }
+    .profile-actions .btn-ghost { margin-top: 8px; }
     /* Список комментариев прокручивается сам по себе (новые уводят старые
        вверх и всегда видны снизу) — поле ввода под списком не двигается. */
     /* Высота ФИКСИРОВАННАЯ (не max-height) — иначе пока комментариев мало,

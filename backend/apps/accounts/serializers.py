@@ -11,7 +11,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            'id', 'email', 'first_name', 'last_name', 'role', 'phone',
+            'id', 'email', 'first_name', 'last_name', 'role', 'phone', 'avatar',
             'phone_verified', 'country', 'city', 'is_active_student', 'date_joined',
         ]
         read_only_fields = ['id', 'role', 'phone_verified', 'date_joined']
@@ -20,7 +20,7 @@ class UserSerializer(serializers.ModelSerializer):
 class ProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'country', 'city']
+        fields = ['first_name', 'last_name', 'country', 'city', 'avatar']
 
 
 class ChangePasswordSerializer(serializers.Serializer):

@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import Sidebar from '../../components/common/Sidebar.vue'
 import { useAuthStore } from '../../store/auth'
 import { useUiStore } from '../../store/ui'
@@ -7,14 +7,65 @@ import { learnerLinks as links } from '../../nav'
 
 const auth = useAuthStore()
 const ui = useUiStore()
-const firstName = ref(auth.user?.first_name || '')
-const lastName = ref(auth.user?.last_name || '')
-const country = ref(auth.user?.country || '')
-const city = ref(auth.user?.city || '')
+
+const form = reactive({
+  first_name: auth.user?.first_name || '',
+  last_name: auth.user?.last_name || '',
+  country: auth.user?.country || '',
+  city: auth.user?.city || '',
+})
+const saving = ref(false)
+const dirty = ref(false)
+
+function markDirty() {
+  dirty.value = true
+}
+
+const avatarInput = ref(null)
+const avatarPreview = ref(auth.user?.avatar || null)
+const pendingAvatarFile = ref(null)
+
+const initials = computed(() => {
+  const name = `${form.first_name} ${form.last_name}`.trim()
+  return name.split(' ').filter(Boolean).map((w) => w[0]).join('').toUpperCase() || '??'
+})
+
+function pickAvatar() {
+  avatarInput.value?.click()
+}
+
+function onAvatarChosen(e) {
+  const file = e.target.files?.[0]
+  e.target.value = ''
+  if (!file) return
+  if (!file.type.startsWith('image/')) {
+    ui.showToast('Выберите файл изображения', 'error')
+    return
+  }
+  pendingAvatarFile.value = file
+  avatarPreview.value = URL.createObjectURL(file)
+  dirty.value = true
+}
 
 async function save() {
-  await auth.updateProfile({ first_name: firstName.value, last_name: lastName.value, country: country.value, city: city.value })
-  ui.showToast('Профиль обновлён', 'success')
+  saving.value = true
+  try {
+    const payload = new FormData()
+    payload.append('first_name', form.first_name)
+    payload.append('last_name', form.last_name)
+    payload.append('country', form.country)
+    payload.append('city', form.city)
+    if (pendingAvatarFile.value) payload.append('avatar', pendingAvatarFile.value)
+
+    await auth.updateProfile(payload)
+    pendingAvatarFile.value = null
+    dirty.value = false
+    ui.showToast('Профиль обновлён', 'success')
+  } catch (e) {
+    ui.showToast('Не удалось сохранить профиль', 'error')
+  } finally {
+    saving.value = false
+  }
 }
 
 // ===== Смена пароля =====
@@ -47,29 +98,52 @@ async function changePassword() {
     <main class="main">
       <div class="view active">
         <div class="main-header"><div><h1>Мой профиль</h1><p>Email закреплён администратором</p></div></div>
-        <div class="mini-card" style="max-width:460px;">
-          <h4>Данные аккаунта</h4>
-          <div class="field"><label>Имя</label><input v-model="firstName" @change="save"></div>
-          <div class="field"><label>Фамилия</label><input v-model="lastName" @change="save"></div>
-          <div class="field">
-            <label>Email</label>
-            <div style="display:flex; align-items:center; gap:8px;">
-              <input :value="auth.user?.email" disabled style="flex:1;">
-              <span style="color:var(--ok); font-size:14px;">✓</span>
+
+        <div class="profile-layout">
+          <div class="mini-card profile-card">
+            <h4>Данные аккаунта</h4>
+
+            <div class="profile-avatar-row">
+              <div class="profile-avatar" @click="pickAvatar">
+                <img v-if="avatarPreview" :src="avatarPreview" alt="">
+                <span v-else>{{ initials }}</span>
+                <div class="profile-avatar-edit">✎</div>
+              </div>
+              <input ref="avatarInput" type="file" accept="image/*" style="display:none" @change="onAvatarChosen">
+              <div class="profile-avatar-hint">
+                <strong>{{ form.first_name || form.last_name ? `${form.first_name} ${form.last_name}`.trim() : 'Без имени' }}</strong>
+                <button type="button" class="link-btn" @click="pickAvatar">Изменить фото</button>
+              </div>
+            </div>
+
+            <div class="field"><label>Имя</label><input v-model="form.first_name" @input="markDirty"></div>
+            <div class="field"><label>Фамилия</label><input v-model="form.last_name" @input="markDirty"></div>
+            <div class="field">
+              <label>Email</label>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <input :value="auth.user?.email" disabled style="flex:1;">
+                <span style="color:var(--ok); font-size:14px;">✓</span>
+              </div>
+            </div>
+            <div class="field"><label>Страна</label><input v-model="form.country" @input="markDirty"></div>
+            <div class="field"><label>Город</label><input v-model="form.city" @input="markDirty"></div>
+
+            <div class="profile-actions">
+              <button class="btn-primary" :disabled="!dirty || saving" @click="save">
+                {{ saving ? 'Сохранение...' : 'Сохранить изменения' }}
+              </button>
+              <button class="btn-ghost" @click="openChangePassword">Сменить пароль</button>
             </div>
           </div>
-          <div class="field"><label>Страна</label><input v-model="country" @change="save"></div>
-          <div class="field"><label>Город</label><input v-model="city" @change="save"></div>
-          <button class="btn-ghost" @click="openChangePassword">Сменить пароль</button>
-        </div>
 
-        <div class="mini-card" style="max-width:460px; margin-top:18px;">
-          <h4>Настройки</h4>
-          <div class="settings-row">
-            <div class="lbl">Оформление<small>Тёмная или светлая тема интерфейса</small></div>
-            <div class="settings-switch">
-              <button type="button" :class="{ active: ui.theme === 'dark' }" @click="ui.setTheme('dark')">Тёмная</button>
-              <button type="button" :class="{ active: ui.theme === 'light' }" @click="ui.setTheme('light')">Светлая</button>
+          <div class="mini-card profile-card">
+            <h4>Настройки</h4>
+            <div class="settings-row">
+              <div class="lbl">Оформление<small>Тёмная или светлая тема интерфейса</small></div>
+              <div class="settings-switch">
+                <button type="button" :class="{ active: ui.theme === 'dark' }" @click="ui.setTheme('dark')">Тёмная</button>
+                <button type="button" :class="{ active: ui.theme === 'light' }" @click="ui.setTheme('light')">Светлая</button>
+              </div>
             </div>
           </div>
         </div>
