@@ -7,7 +7,7 @@ export const useUiStore = defineStore('ui', {
   state: () => ({
     toasts: [],
     sidebarOpen: false,
-    theme: localStorage.getItem(THEME_KEY) || 'dark',
+    theme: localStorage.getItem(THEME_KEY) || 'light',
   }),
   actions: {
     showToast(message, type = 'success') {

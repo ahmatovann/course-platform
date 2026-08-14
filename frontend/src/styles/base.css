@@ -1,52 +1,65 @@
     /* ============================================================
        ЦВЕТОВАЯ ПАЛИТРА
-       Тема переключается атрибутом data-theme на <html> (тёмная —
-       по умолчанию, светлая — ниже). Кнопка переключения — вверху
+       Тема переключается атрибутом data-theme на <html> (светлая —
+       по умолчанию, тёмная — ниже). Кнопка переключения — вверху
        справа на любой странице. Весь интерфейс построен на этих
        переменных, поэтому смена темы сразу красит всё приложение.
+       Боковое меню — фирменный фиолетовый цвет, не меняется темой.
        ============================================================ */
     :root {
-      /* тёмная тема (по умолчанию) — глубокий синий + золото */
+      /* тёмная тема — глубокий синий фон + фиолетовый акцент */
       --bg-grad-1: #101A30;
       --bg-grad-2: #0B1120;
       --navy-deep: #0B1120;   /* фон страницы */
       --navy: #121B30;        /* фон карточек */
       --navy-soft: #1B2740;   /* фон при наведении / второстепенные блоки */
       --line: #28324B;        /* границы */
-      --gold: #C9A66B;        /* акцент */
-      --gold-soft: #7C6A47;   /* приглушённый акцент */
+      --gold: #8B7EE8;        /* акцент — светлее для контраста на тёмном */
+      --gold-soft: #6C5CE7;   /* приглушённый акцент */
+      --gold-2: #5B4FCF;      /* второй цвет градиента акцента */
       --text-hi: #F3F5F9;     /* основной текст */
       --text-mid: #B9C2D6;    /* второстепенный текст */
       --text-dim: #7C8AA6;    /* подписи, подсказки */
       --ok: #4FB286;
       --danger: #D2685A;
-      --on-accent: #14101F;   /* текст поверх золотых кнопок — тёмный в любой теме */
+      --on-accent: #14101F;   /* текст поверх акцентных кнопок в тёмной теме */
       --player-1: #1a2440;
       --player-2: #0d1424;
       --shadow: 0 20px 50px -25px rgba(0,0,0,.65);
-      --radius: 14px;
+      --radius: 16px;
       --font-display: 'Cormorant Garamond', serif;
       --font-body: 'Inter', sans-serif;
       --transition: all 0.25s ease;
       --theme-transition: background-color .35s ease, border-color .35s ease, color .35s ease, box-shadow .35s ease;
+
+      /* Боковое меню — фирменный фиолетовый, одинаковый в обеих темах */
+      --sidebar-bg: #6C5CE7;
+      --sidebar-text: #FFFFFF;
+      --sidebar-text-dim: rgba(255,255,255,.68);
+      --sidebar-line: rgba(255,255,255,.16);
+      --sidebar-hover-bg: rgba(255,255,255,.12);
+      --sidebar-active-bg: #FFFFFF;
+      --sidebar-active-text: #6C5CE7;
     }
 
-    /* светлая тема — тёплый светлый фон, тот же синий + золото в тексте и акцентах */
+    /* светлая тема (по умолчанию) — светлый лавандовый фон, белые карточки, фиолетовый акцент */
     :root[data-theme="light"] {
-      --bg-grad-1: #FFFFFF;
-      --bg-grad-2: #F6F2E8;
-      --navy-deep: #F8F6F0;   /* фон страницы — светлый */
+      --bg-grad-1: #F4F3FC;
+      --bg-grad-2: #ECE9FA;
+      --navy-deep: #F1EFFB;   /* фон страницы — светлый лавандовый */
       --navy: #FFFFFF;        /* фон карточек — белый */
-      --navy-soft: #F1ECE0;   /* лёгкий тёплый серый при наведении */
-      --line: #E4DCC8;        /* мягкие светлые границы */
-      --gold: #B07F35;        /* акцент чуть темнее для контраста на белом */
-      --gold-soft: #C9A66B;
-      --text-hi: #1E2233;     /* тёмно-синий текст */
-      --text-mid: #4B5468;
-      --text-dim: #8891A3;
+      --navy-soft: #F5F4FC;   /* лёгкий лавандовый при наведении */
+      --line: #E8E5F7;        /* мягкие светлые границы */
+      --gold: #6C5CE7;        /* акцент — фиолетовый */
+      --gold-soft: #A79AF0;
+      --gold-2: #5B4FCF;
+      --text-hi: #2B2B45;     /* тёмный текст */
+      --text-mid: #6B6C8A;
+      --text-dim: #9698B5;
       --ok: #2F9467;
       --danger: #C4483A;
-      --shadow: 0 16px 40px -22px rgba(30,34,51,.18);
+      --on-accent: #FFFFFF;   /* текст поверх акцентных кнопок в светлой теме */
+      --shadow: 0 16px 40px -20px rgba(76,63,153,.16);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -138,7 +151,7 @@
     .field input:disabled, .field select:disabled { opacity: .6; cursor: not-allowed; }
     .field .hint { font-size: 11px; color: var(--text-dim); margin-top: 6px; }
     .btn-primary {
-      width: 100%; padding: 13px; background: linear-gradient(135deg, var(--gold), #B08D53);
+      width: 100%; padding: 13px; background: linear-gradient(135deg, var(--gold), var(--gold-2));
       color: var(--on-accent); font-weight: 700; border-radius: 10px; font-size: 14px; letter-spacing: .02em;
       margin-top: 6px; transition: var(--transition);
     }
@@ -180,36 +193,37 @@
     .app { display: none; min-height: 100vh; }
     .app.active { display: flex; }
     .sidebar {
-      width: 248px; flex-shrink: 0; background: var(--navy); border-right: 1px solid var(--line);
+      width: 248px; flex-shrink: 0; background: var(--sidebar-bg); border-right: none;
       padding: 22px 16px; display: flex; flex-direction: column; gap: 4px;
-      transition: var(--transition);
+      transition: var(--transition); box-shadow: 8px 0 30px -18px rgba(76,63,153,.35);
     }
-    .sidebar .logo { padding: 6px 10px 24px; }
+    .sidebar .logo { padding: 6px 10px 24px; color: var(--sidebar-text); }
     .side-section-title {
-      font-size: 10.5px; text-transform: uppercase; letter-spacing: .12em; color: var(--text-dim);
+      font-size: 10.5px; text-transform: uppercase; letter-spacing: .12em; color: var(--sidebar-text-dim);
       padding: 16px 10px 6px;
     }
     .side-link {
-      display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px;
-      color: var(--text-mid); font-size: 13.5px; font-weight: 500; transition: var(--transition);
+      display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 999px;
+      color: var(--sidebar-text-dim); font-size: 13.5px; font-weight: 500; transition: var(--transition);
       cursor: pointer;
     }
-    .side-link:hover { background: var(--navy-soft); color: var(--text-hi); }
-    .side-link.active { background: var(--navy-soft); color: var(--gold); }
+    .side-link:hover { background: var(--sidebar-hover-bg); color: var(--sidebar-text); }
+    .side-link.active { background: var(--sidebar-active-bg); color: var(--sidebar-active-text); font-weight: 700; }
     .side-link .icon { width: 17px; text-align: center; opacity: .8; }
     .side-footer {
-      margin-top: auto; padding: 14px 12px; border-top: 1px solid var(--line);
+      margin-top: auto; padding: 14px 12px; border-top: 1px solid var(--sidebar-line);
       display: flex; align-items: center; gap: 10px;
     }
     .avatar {
-      width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--gold), #8C6F3E);
+      width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--gold), var(--gold-2));
       display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--on-accent); font-size: 13px;
     }
-    .side-footer .name { font-size: 13px; font-weight: 600; }
-    .side-footer .role { font-size: 11px; color: var(--text-dim); }
+    .sidebar .avatar { background: rgba(255,255,255,.22); color: var(--sidebar-text); }
+    .side-footer .name { font-size: 13px; font-weight: 600; color: var(--sidebar-text); }
+    .side-footer .role { font-size: 11px; color: var(--sidebar-text-dim); }
     .bell-wrap { margin-left: auto; }
-    .logout-btn { color: var(--text-dim); font-size: 16px; background: none; transition: var(--transition); }
-    .logout-btn:hover { color: var(--danger); }
+    .logout-btn { color: var(--sidebar-text-dim); font-size: 16px; background: none; transition: var(--transition); }
+    .logout-btn:hover { color: #FFD6D2; }
 
     .main { flex: 1; padding: 30px 40px; overflow-y: auto; }
     .main-header {
@@ -315,9 +329,9 @@
     }
     .comment-timestamp-badge {
       display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; padding: 2px 8px;
-      border-radius: 999px; background: rgba(201,166,107,.16); color: var(--gold); font-size: 10.5px; font-weight: 700;
+      border-radius: 999px; background: rgba(108,92,231,.16); color: var(--gold); font-size: 10.5px; font-weight: 700;
     }
-    .comment-timestamp-badge:hover { background: rgba(201,166,107,.28); }
+    .comment-timestamp-badge:hover { background: rgba(108,92,231,.28); }
     .comment-attach-row { margin: 10px 0 -4px; }
     .comment-attach-btn {
       padding: 7px 12px; border-radius: 999px; background: var(--navy-soft); border: 1px solid var(--line);
@@ -326,7 +340,7 @@
     .comment-attach-btn:hover { border-color: var(--gold); color: var(--gold); }
     .comment-attach-badge {
       display: inline-flex; align-items: center; gap: 8px; padding: 7px 10px 7px 12px; border-radius: 999px;
-      background: rgba(201,166,107,.16); color: var(--gold); font-size: 11.5px; font-weight: 700;
+      background: rgba(108,92,231,.16); color: var(--gold); font-size: 11.5px; font-weight: 700;
     }
     .comment-attach-badge button { color: var(--gold); font-size: 14px; line-height: 1; }
     .video-extras { display: flex; gap: 14px; margin-top: 14px; flex-wrap: wrap; }
@@ -376,7 +390,7 @@
     }
     .chat-thread-row:hover { background: var(--navy-soft); }
     .chat-thread-row.active { background: var(--navy-soft); }
-    .chat-thread-row .avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--gold), #8C6F3E); color: var(--on-accent); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+    .chat-thread-row .avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--gold), var(--gold-2)); color: var(--on-accent); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex-shrink: 0; }
     .chat-thread-info { flex: 1; min-width: 0; }
     .chat-thread-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
     .chat-thread-title { font-size: 13.5px; font-weight: 600; color: var(--text-hi); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -403,7 +417,7 @@
       border-bottom-left-radius: 4px;
     }
     .chat-bubble-row.mine .chat-bubble {
-      background: linear-gradient(135deg, rgba(201,166,107,.22), rgba(201,166,107,.12));
+      background: linear-gradient(135deg, rgba(108,92,231,.22), rgba(108,92,231,.12));
       border-bottom-left-radius: 14px; border-bottom-right-radius: 4px;
     }
     .chat-bubble-who { font-size: 11px; font-weight: 700; color: var(--gold); margin-bottom: 2px; }
@@ -495,7 +509,7 @@
     .profile-avatar-row { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
     .profile-avatar {
       position: relative; width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0; cursor: pointer;
-      background: linear-gradient(135deg, var(--gold), #8C6F3E); color: var(--on-accent);
+      background: linear-gradient(135deg, var(--gold), var(--gold-2)); color: var(--on-accent);
       display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px;
       overflow: hidden;
     }
@@ -544,7 +558,7 @@
     }
     .opt:hover { border-color: var(--gold-soft); }
     .opt input { accent-color: var(--gold); }
-    .opt.selected { border-color: var(--gold); background: rgba(201,166,107,.08); }
+    .opt.selected { border-color: var(--gold); background: rgba(108,92,231,.08); }
     .opt input[type="text"] {
       background: transparent; border: none; color: var(--text-hi); width: 100%; outline: none;
     }
@@ -566,6 +580,8 @@
     .bell-wrap { position: relative; }
     .bell-btn { position: relative; color: var(--text-mid); background: none; padding: 6px; border-radius: 8px; transition: var(--transition); display: inline-flex; align-items: center; justify-content: center; }
     .bell-btn:hover { color: var(--gold); background: var(--navy-soft); }
+    .sidebar .bell-btn { color: var(--sidebar-text-dim); }
+    .sidebar .bell-btn:hover { color: var(--sidebar-text); background: var(--sidebar-hover-bg); }
     .bell-icon { width: 18px; height: 18px; }
     .bell-badge {
       position: absolute; top: -2px; right: -2px; min-width: 15px; height: 15px; padding: 0 3px;
@@ -587,7 +603,7 @@
     .bell-empty { padding: 20px 10px; text-align: center; color: var(--text-dim); font-size: 12.5px; }
     .bell-item { padding: 10px; border-radius: 10px; cursor: pointer; transition: var(--transition); }
     .bell-item:hover { background: var(--navy-soft); }
-    .bell-item.unread { background: rgba(201,166,107,.07); }
+    .bell-item.unread { background: rgba(108,92,231,.07); }
     .bell-item-text { font-size: 12.5px; color: var(--text-hi); line-height: 1.4; overflow-wrap: anywhere; word-break: break-word; }
     .bell-item-time { font-size: 10.5px; color: var(--text-dim); margin-top: 3px; }
     table { width: 100%; border-collapse: collapse; background: var(--navy); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
@@ -654,12 +670,12 @@
       content: ''; position: absolute; width: 16px; height: 16px; left: 2px; top: 2px;
       background: var(--text-dim); border-radius: 50%; transition: var(--transition);
     }
-    .switch input:checked + .slider { background: rgba(201,166,107,.25); border-color: var(--gold); }
+    .switch input:checked + .slider { background: rgba(108,92,231,.25); border-color: var(--gold); }
     .switch input:checked + .slider::before { transform: translateX(18px); background: var(--gold); }
 
     .hamburger {
-      display: none; background: none; color: var(--text-hi); font-size: 24px;
-      padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px;
+      display: none; background: none; color: var(--sidebar-text); font-size: 24px;
+      padding: 6px 12px; border: 1px solid var(--sidebar-line); border-radius: 8px;
     }
     .sidebar.open { display: flex !important; }
     @media(max-width: 860px) {
@@ -707,8 +723,8 @@
   animation: loginCardOut .32s ease forwards;
 }
 @keyframes gemPulse {
-  0%, 100% { filter: drop-shadow(0 0 0 rgba(201,166,107,0)); }
-  50% { filter: drop-shadow(0 0 7px rgba(201,166,107,.6)); }
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(108,92,231,0)); }
+  50% { filter: drop-shadow(0 0 7px rgba(108,92,231,.6)); }
 }
 .login-card .logo .gem svg { animation: gemPulse 2.6s ease-in-out infinite; }
 
