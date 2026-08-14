@@ -4,19 +4,20 @@
        по умолчанию, тёмная — ниже). Кнопка переключения — вверху
        справа на любой странице. Весь интерфейс построен на этих
        переменных, поэтому смена темы сразу красит всё приложение.
-       Боковое меню — фирменный фиолетовый цвет, не меняется темой.
+       Тёмная тема — прежний вид (синий + золото, тёмный сайдбар).
+       Светлая тема — новый фиолетовый мудборд с ярким сайдбаром.
        ============================================================ */
     :root {
-      /* тёмная тема — глубокий синий фон + фиолетовый акцент */
+      /* тёмная тема — прежний вид: глубокий синий + золото */
       --bg-grad-1: #101A30;
       --bg-grad-2: #0B1120;
       --navy-deep: #0B1120;   /* фон страницы */
       --navy: #121B30;        /* фон карточек */
       --navy-soft: #1B2740;   /* фон при наведении / второстепенные блоки */
       --line: #28324B;        /* границы */
-      --gold: #8B7EE8;        /* акцент — светлее для контраста на тёмном */
-      --gold-soft: #6C5CE7;   /* приглушённый акцент */
-      --gold-2: #5B4FCF;      /* второй цвет градиента акцента */
+      --gold: #C9A66B;        /* акцент */
+      --gold-soft: #7C6A47;   /* приглушённый акцент */
+      --gold-2: #8C6F3E;      /* второй цвет градиента акцента */
       --text-hi: #F3F5F9;     /* основной текст */
       --text-mid: #B9C2D6;    /* второстепенный текст */
       --text-dim: #7C8AA6;    /* подписи, подсказки */
@@ -32,14 +33,14 @@
       --transition: all 0.25s ease;
       --theme-transition: background-color .35s ease, border-color .35s ease, color .35s ease, box-shadow .35s ease;
 
-      /* Боковое меню — фирменный фиолетовый, одинаковый в обеих темах */
-      --sidebar-bg: #6C5CE7;
-      --sidebar-text: #FFFFFF;
-      --sidebar-text-dim: rgba(255,255,255,.68);
-      --sidebar-line: rgba(255,255,255,.16);
-      --sidebar-hover-bg: rgba(255,255,255,.12);
-      --sidebar-active-bg: #FFFFFF;
-      --sidebar-active-text: #6C5CE7;
+      /* Боковое меню в тёмной теме — как раньше, тон карточек/фона */
+      --sidebar-bg: var(--navy);
+      --sidebar-text: var(--text-hi);
+      --sidebar-text-dim: var(--text-mid);
+      --sidebar-line: var(--line);
+      --sidebar-hover-bg: var(--navy-soft);
+      --sidebar-active-bg: var(--navy-soft);
+      --sidebar-active-text: var(--gold);
     }
 
     /* светлая тема (по умолчанию) — светлый лавандовый фон, белые карточки, фиолетовый акцент */
@@ -60,6 +61,15 @@
       --danger: #C4483A;
       --on-accent: #FFFFFF;   /* текст поверх акцентных кнопок в светлой теме */
       --shadow: 0 16px 40px -20px rgba(76,63,153,.16);
+
+      /* Боковое меню в светлой теме — фирменный фиолетовый блок */
+      --sidebar-bg: #6C5CE7;
+      --sidebar-text: #FFFFFF;
+      --sidebar-text-dim: rgba(255,255,255,.68);
+      --sidebar-line: rgba(255,255,255,.16);
+      --sidebar-hover-bg: rgba(255,255,255,.12);
+      --sidebar-active-bg: #FFFFFF;
+      --sidebar-active-text: #6C5CE7;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -193,10 +203,11 @@
     .app { display: none; min-height: 100vh; }
     .app.active { display: flex; }
     .sidebar {
-      width: 248px; flex-shrink: 0; background: var(--sidebar-bg); border-right: none;
+      width: 248px; flex-shrink: 0; background: var(--sidebar-bg); border-right: 1px solid var(--sidebar-line);
       padding: 22px 16px; display: flex; flex-direction: column; gap: 4px;
-      transition: var(--transition); box-shadow: 8px 0 30px -18px rgba(76,63,153,.35);
+      transition: var(--transition);
     }
+    :root[data-theme="light"] .sidebar { border-right: none; box-shadow: 8px 0 30px -18px rgba(76,63,153,.35); }
     .sidebar .logo { padding: 6px 10px 24px; color: var(--sidebar-text); }
     .side-section-title {
       font-size: 10.5px; text-transform: uppercase; letter-spacing: .12em; color: var(--sidebar-text-dim);
@@ -218,7 +229,7 @@
       width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--gold), var(--gold-2));
       display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--on-accent); font-size: 13px;
     }
-    .sidebar .avatar { background: rgba(255,255,255,.22); color: var(--sidebar-text); }
+    :root[data-theme="light"] .sidebar .avatar { background: rgba(255,255,255,.22); color: var(--sidebar-text); }
     .side-footer .name { font-size: 13px; font-weight: 600; color: var(--sidebar-text); }
     .side-footer .role { font-size: 11px; color: var(--sidebar-text-dim); }
     .bell-wrap { margin-left: auto; }
