@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useAuthStore } from '../../store/auth'
 import { useUiStore } from '../../store/ui'
 import { useRouter } from 'vue-router'
@@ -28,6 +28,9 @@ function logout() {
   auth.logout()
   router.push('/login')
 }
+
+// Клик по аватарке в подвале меню — посмотреть фото крупнее.
+const showAvatarLightbox = ref(false)
 </script>
 
 <template>
@@ -44,7 +47,14 @@ function logout() {
       <span v-if="badgeCounts[l.to] !== undefined" class="side-link-badge">{{ badgeCounts[l.to] }}</span>
     </router-link>
     <div class="side-footer">
-      <div class="avatar">{{ auth.isAdmin ? 'CA' : auth.initials }}</div>
+      <button
+        type="button" class="avatar" :class="{ clickable: auth.user?.avatar }"
+        @click="auth.user?.avatar && (showAvatarLightbox = true)"
+        :aria-label="auth.user?.avatar ? 'Посмотреть фото' : undefined"
+      >
+        <img v-if="auth.user?.avatar" :src="auth.user.avatar" alt="">
+        <template v-else>{{ auth.isAdmin ? 'CA' : auth.initials }}</template>
+      </button>
       <div>
         <div class="name">{{ auth.isAdmin ? 'Course Admin' : (auth.user?.first_name + ' ' + auth.user?.last_name) }}</div>
         <div class="role">{{ auth.isAdmin ? 'Администратор' : 'Ученик' }}</div>
@@ -53,4 +63,9 @@ function logout() {
       <button class="logout-btn" @click="logout">⏻</button>
     </div>
   </aside>
+
+  <div class="modal-overlay avatar-lightbox-overlay" :class="{ active: showAvatarLightbox }" @click="showAvatarLightbox = false">
+    <button type="button" class="avatar-lightbox-close" @click="showAvatarLightbox = false" aria-label="Закрыть">×</button>
+    <img v-if="auth.user?.avatar" :src="auth.user.avatar" class="avatar-lightbox-img" alt="Фото профиля" @click.stop>
+  </div>
 </template>
