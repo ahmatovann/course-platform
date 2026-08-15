@@ -77,7 +77,7 @@ async function generateAvatar() {
   generatingAvatar.value = true
   try {
     const seed = Math.random().toString(36).slice(2)
-    const url = `https://api.dicebear.com/9.x/avataaars/png?seed=${seed}&size=256`
+    const url = `https://api.dicebear.com/9.x/personas/png?seed=${seed}&size=256`
     const res = await fetch(url)
     if (!res.ok) throw new Error('bad response')
     const blob = await res.blob()
@@ -192,11 +192,8 @@ function courseStatus(c) {
                 </div>
                 <input ref="avatarInput" type="file" accept="image/*" style="display:none" @change="onAvatarChosen">
                 <div class="profile-avatar-links">
-                  <button type="button" class="avatar-action-btn" @click="pickAvatar">
-                    <span class="avatar-action-icon">🖼</span> Загрузить фото
-                  </button>
+                  <button type="button" class="avatar-action-btn" @click="pickAvatar">Загрузить фото</button>
                   <button type="button" class="avatar-action-btn" :disabled="generatingAvatar" @click="generateAvatar">
-                    <span class="avatar-action-icon">{{ generatingAvatar ? '⏳' : '✨' }}</span>
                     {{ generatingAvatar ? 'Генерируем...' : 'Сгенерировать аватар' }}
                   </button>
                 </div>

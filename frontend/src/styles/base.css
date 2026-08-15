@@ -563,7 +563,6 @@
     }
     .avatar-action-btn:hover { border-color: var(--gold); color: var(--gold); transform: translateY(-1px); }
     .avatar-action-btn:disabled { opacity: .6; cursor: not-allowed; transform: none; }
-    .avatar-action-icon { font-size: 15px; line-height: 1; }
     .profile-actions { display: flex; flex-direction: column; margin-top: 16px; }
     .profile-actions .btn-ghost { margin-top: 8px; }
 
