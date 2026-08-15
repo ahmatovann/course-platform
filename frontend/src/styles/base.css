@@ -526,28 +526,85 @@
     .mini-card { background: var(--navy); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
     .mini-card h4 { font-size: 13.5px; margin-bottom: 12px; color: var(--text-mid); }
 
-    .profile-layout { display: flex; flex-direction: column; gap: 18px; max-width: 460px; }
-    .profile-card { width: 100%; }
+    .profile-grid { display: flex; flex-direction: column; gap: 18px; max-width: 720px; }
     .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
-    .profile-avatar-row { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
-    .profile-avatar {
-      position: relative; width: 64px; height: 64px; border-radius: 50%; flex-shrink: 0; cursor: pointer;
+
+    .profile-hero { position: relative; padding: 26px; }
+    .profile-edit-btn {
+      position: absolute; top: 20px; right: 20px; width: 34px; height: 34px; border-radius: 50%;
+      background: var(--navy-soft); border: 1px solid var(--line); color: var(--gold);
+      display: flex; align-items: center; justify-content: center; font-size: 14px; transition: var(--transition);
+    }
+    .profile-edit-btn:hover { border-color: var(--gold); transform: scale(1.05); }
+    .profile-hero-top { display: flex; gap: 26px; align-items: center; }
+    .profile-avatar-lg {
+      width: 136px; height: 136px; border-radius: 50%; flex-shrink: 0; overflow: hidden;
       background: linear-gradient(135deg, var(--gold), var(--gold-2)); color: var(--on-accent);
-      display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px;
-      overflow: hidden;
+      display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 34px;
+      border: none; padding: 0; transition: var(--transition);
     }
-    .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .profile-avatar-edit {
-      position: absolute; right: -2px; bottom: -2px; width: 22px; height: 22px; border-radius: 50%;
-      background: var(--navy); border: 1px solid var(--line); color: var(--gold);
-      display: flex; align-items: center; justify-content: center; font-size: 11px;
-    }
-    .profile-avatar-hint { display: flex; flex-direction: column; gap: 4px; }
-    .profile-avatar-hint strong { font-size: 14px; color: var(--text-hi); }
+    .profile-avatar-lg.clickable { cursor: pointer; }
+    .profile-avatar-lg.clickable:hover { transform: scale(1.03); box-shadow: 0 10px 26px -12px rgba(76,63,153,.5); }
+    .profile-avatar-lg img { width: 100%; height: 100%; object-fit: cover; }
+    .profile-hero-info h2 { font-size: 22px; font-weight: 700; margin-bottom: 12px; }
+    .profile-info-row { font-size: 14px; color: var(--text-mid); margin-bottom: 8px; }
+    .profile-info-row span { color: var(--text-dim); margin-right: 4px; }
+
+    .profile-avatar-row { display: flex; flex-direction: column; align-items: center; gap: 16px; margin-bottom: 24px; }
+    .profile-avatar-lg-edit { width: 128px; height: 128px; font-size: 32px; }
     .link-btn { background: none; padding: 0; color: var(--gold); font-size: 12px; text-align: left; width: auto; }
     .link-btn:hover { text-decoration: underline; }
-    .profile-actions { display: flex; flex-direction: column; }
+    .link-btn:disabled { opacity: .5; cursor: not-allowed; text-decoration: none; }
+    .profile-avatar-links { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    .avatar-action-btn {
+      display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 999px;
+      background: var(--navy-soft); border: 1px solid var(--line); color: var(--text-hi);
+      font-size: 13px; font-weight: 600; transition: var(--transition); width: auto;
+    }
+    .avatar-action-btn:hover { border-color: var(--gold); color: var(--gold); transform: translateY(-1px); }
+    .avatar-action-btn:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+    .avatar-action-icon { font-size: 15px; line-height: 1; }
+    .profile-actions { display: flex; flex-direction: column; margin-top: 16px; }
     .profile-actions .btn-ghost { margin-top: 8px; }
+
+    /* Просмотр фото профиля крупным планом. */
+    .avatar-lightbox-overlay { background: rgba(4,7,15,.82); }
+    .avatar-lightbox-img {
+      max-width: min(480px, 86vw); max-height: 80vh; border-radius: 20px;
+      box-shadow: 0 30px 70px -20px rgba(0,0,0,.6); animation: fadeUp .25s ease;
+    }
+    .avatar-lightbox-close {
+      position: absolute; top: 22px; right: 26px; width: 40px; height: 40px; border-radius: 50%;
+      background: rgba(255,255,255,.12); color: #fff; font-size: 22px; line-height: 1;
+      display: flex; align-items: center; justify-content: center; transition: var(--transition);
+    }
+    .avatar-lightbox-close:hover { background: rgba(255,255,255,.22); }
+
+    /* Таймлайн курсов на странице профиля — вертикальная линия с точками. */
+    .course-timeline { display: flex; flex-direction: column; }
+    .course-timeline-item { display: flex; gap: 14px; }
+    .course-timeline-dot {
+      position: relative; width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; margin-top: 4px;
+      background: var(--navy-soft); border: 2px solid var(--line);
+    }
+    .course-timeline-item:not(:last-child) .course-timeline-dot::after {
+      content: ''; position: absolute; top: 14px; left: 50%; width: 1px; height: calc(100% + 10px);
+      transform: translateX(-50%); background: var(--line);
+    }
+    .course-timeline-dot.done { background: var(--ok); border-color: var(--ok); }
+    .course-timeline-dot.progress { background: var(--gold); border-color: var(--gold); }
+    .course-timeline-body { flex: 1; padding-bottom: 22px; min-width: 0; }
+    .course-timeline-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .course-timeline-body strong { font-size: 14px; }
+    .course-timeline-body p { font-size: 12px; color: var(--text-dim); margin: 3px 0; overflow-wrap: anywhere; }
+    .course-timeline-meta { font-size: 11px; color: var(--text-dim); }
+    .badge-pill {
+      flex-shrink: 0; font-size: 10.5px; font-weight: 700; padding: 4px 10px; border-radius: 999px; white-space: nowrap;
+    }
+    .badge-pill.done { background: rgba(79,178,134,.15); color: var(--ok); }
+    .badge-pill.progress { background: rgba(108,92,231,.14); color: var(--gold); }
+    .badge-pill.todo { background: var(--navy-soft); color: var(--text-dim); }
+    .badge-pill.locked { background: rgba(210,104,90,.12); color: var(--danger); }
     /* Список комментариев прокручивается сам по себе (новые уводят старые
        вверх и всегда видны снизу) — поле ввода под списком не двигается. */
     /* Высота ФИКСИРОВАННАЯ (не max-height) — иначе пока комментариев мало,

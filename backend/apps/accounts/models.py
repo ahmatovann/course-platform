@@ -12,6 +12,7 @@ class User(AbstractUser):
     role = models.CharField(max_length=10, choices=Role.choices, default=Role.STUDENT)
     phone = models.CharField(max_length=32, blank=True, default='')
     phone_verified = models.BooleanField(default=False)
+    birth_date = models.DateField(blank=True, null=True)
     country = models.CharField(max_length=64, blank=True, default='')
     city = models.CharField(max_length=64, blank=True, default='')
     is_active_student = models.BooleanField(default=True)
