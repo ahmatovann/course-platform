@@ -77,7 +77,7 @@ async function generateAvatar() {
   generatingAvatar.value = true
   try {
     const seed = Math.random().toString(36).slice(2)
-    const url = `https://api.dicebear.com/9.x/personas/png?seed=${seed}&size=256`
+    const url = `https://api.dicebear.com/9.x/lorelei/png?seed=${seed}&size=256`
     const res = await fetch(url)
     if (!res.ok) throw new Error('bad response')
     const blob = await res.blob()
