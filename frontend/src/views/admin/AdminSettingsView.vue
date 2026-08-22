@@ -3,11 +3,70 @@ import { onMounted, onUnmounted, ref, watch } from 'vue'
 import Sidebar from '../../components/common/Sidebar.vue'
 import { useUiStore } from '../../store/ui'
 import { useAdminStore } from '../../store/admin'
+import { useAuthStore } from '../../store/auth'
 import { iconForKind } from '../../utils/fileKind'
 import { adminLinks as links } from '../../nav'
 
 const ui = useUiStore()
 const admin = useAdminStore()
+const auth = useAuthStore()
+
+// ===== Мой профиль (аватар администратора) =====
+const avatarInput = ref(null)
+const avatarPreview = ref(auth.user?.avatar || null)
+const generatingAvatar = ref(false)
+const savingAvatar = ref(false)
+const showAvatarLightbox = ref(false)
+
+function pickAvatar() {
+  avatarInput.value?.click()
+}
+
+async function onAvatarChosen(e) {
+  const file = e.target.files?.[0]
+  e.target.value = ''
+  if (!file) return
+  if (!file.type.startsWith('image/')) {
+    ui.showToast('Выберите файл изображения', 'error')
+    return
+  }
+  avatarPreview.value = URL.createObjectURL(file)
+  await saveAvatar(file)
+}
+
+// Бесплатные сгенерированные аватарки через DiceBear (без ключей и регистрации).
+// Каждое нажатие — новый случайный вариант в выбранном стиле.
+async function generateAvatar() {
+  generatingAvatar.value = true
+  try {
+    const seed = Math.random().toString(36).slice(2)
+    const url = `https://api.dicebear.com/9.x/lorelei/png?seed=${seed}&size=256`
+    const res = await fetch(url)
+    if (!res.ok) throw new Error('bad response')
+    const blob = await res.blob()
+    const file = new File([blob], `avatar-${seed}.png`, { type: 'image/png' })
+    avatarPreview.value = URL.createObjectURL(blob)
+    await saveAvatar(file)
+  } catch (e) {
+    ui.showToast('Не удалось сгенерировать аватар — проверьте интернет', 'error')
+  } finally {
+    generatingAvatar.value = false
+  }
+}
+
+async function saveAvatar(file) {
+  savingAvatar.value = true
+  try {
+    const payload = new FormData()
+    payload.append('avatar', file)
+    await auth.updateProfile(payload)
+    ui.showToast('Фото профиля обновлено', 'success')
+  } catch (e) {
+    ui.showToast('Не удалось сохранить фото', 'error')
+  } finally {
+    savingAvatar.value = false
+  }
+}
 
 // ===== Библиотека материалов (все видео уроков + файлы уроков) =====
 const search = ref('')
@@ -90,7 +149,28 @@ async function removeItem(item) {
     <main class="main">
       <div class="view active">
         <div class="main-header"><div><h1>Настройки</h1><p>Оформление и параметры кабинета</p></div></div>
+
         <div class="mini-card" style="max-width:460px;">
+          <h4>Мой профиль</h4>
+          <div class="profile-avatar-row">
+            <button
+              type="button" class="profile-avatar-lg profile-avatar-lg-edit" :class="{ clickable: avatarPreview }"
+              @click="avatarPreview && (showAvatarLightbox = true)"
+            >
+              <img v-if="avatarPreview" :src="avatarPreview" alt="">
+              <span v-else>CA</span>
+            </button>
+            <input ref="avatarInput" type="file" accept="image/*" style="display:none" @change="onAvatarChosen">
+            <div class="profile-avatar-links">
+              <button type="button" class="avatar-action-btn" :disabled="savingAvatar" @click="pickAvatar">Загрузить фото</button>
+              <button type="button" class="avatar-action-btn" :disabled="generatingAvatar || savingAvatar" @click="generateAvatar">
+                {{ generatingAvatar ? 'Генерируем...' : 'Сгенерировать аватар' }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="mini-card" style="max-width:460px; margin-top:20px;">
           <h4>Настройки</h4>
           <div class="settings-row">
             <div class="lbl">Оформление<small>Тёмная или светлая тема интерфейса</small></div>
@@ -157,6 +237,11 @@ async function removeItem(item) {
           <button class="btn-primary" @click="saveRename">Сохранить</button>
         </div>
       </div>
+    </div>
+
+    <div class="modal-overlay avatar-lightbox-overlay" :class="{ active: showAvatarLightbox }" @click="showAvatarLightbox = false">
+      <button type="button" class="avatar-lightbox-close" @click="showAvatarLightbox = false" aria-label="Закрыть">×</button>
+      <img v-if="avatarPreview" :src="avatarPreview" class="avatar-lightbox-img" alt="Фото профиля" @click.stop>
     </div>
   </div>
 </template>
