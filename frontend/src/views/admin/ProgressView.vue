@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import Sidebar from '../../components/common/Sidebar.vue'
+import ProgressRing from '../../components/common/ProgressRing.vue'
 import { useAdminStore } from '../../store/admin'
 import { useUiStore } from '../../store/ui'
 import { adminLinks as links } from '../../nav'
@@ -129,12 +130,15 @@ function toggleAttempts(moduleId) {
               </option>
             </select>
           </div>
-          <div v-if="moduleFilterStat" style="margin-top:14px;">
-            <div class="chart-bar-row">
-              <span class="chart-bar-label">{{ moduleFilterStat.completed_count }} из {{ moduleFilterStat.total_enrolled }} ({{ moduleFilterStat.completed_percent }}%)</span>
-              <div class="chart-bar-track"><div class="chart-bar-fill" :style="{ width: moduleFilterStat.completed_percent + '%' }"></div></div>
+          <div v-if="moduleFilterStat" style="margin-top:14px; display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
+            <ProgressRing :percent="moduleFilterStat.completed_percent" :size="88" :stroke-width="8" />
+            <div style="flex:1; min-width:220px;">
+              <div class="chart-bar-row">
+                <span class="chart-bar-label">{{ moduleFilterStat.completed_count }} из {{ moduleFilterStat.total_enrolled }} ({{ moduleFilterStat.completed_percent }}%)</span>
+                <div class="chart-bar-track"><div class="chart-bar-fill" :style="{ width: moduleFilterStat.completed_percent + '%' }"></div></div>
+              </div>
             </div>
-            <div v-if="moduleFilterStudents?.length" style="margin-top:12px; display:flex; flex-wrap:wrap; gap:8px;">
+            <div v-if="moduleFilterStudents?.length" style="margin-top:12px; display:flex; flex-wrap:wrap; gap:8px; width:100%;">
               <button
                 v-for="s in moduleFilterStudents" :key="s.id" class="dl-btn" style="padding:7px 12px; font-size:12px;"
                 @click="pickStudent(s.id)"
@@ -150,10 +154,13 @@ function toggleAttempts(moduleId) {
           <!-- Сводная статистика и диаграмма по выбранному ученику -->
           <div class="mini-card" v-if="overallStats" style="margin-bottom:22px;">
             <h4>Сводная статистика — {{ progress.student.name }}</h4>
-            <p style="font-size:13px; color:var(--text-mid); margin-bottom:10px;">
-              Пройдено модулей: {{ overallStats.completedModules }} из {{ overallStats.totalModules }} ·
-              Средний процент прохождения по тренингам: {{ overallStats.avgPercent }}%
-            </p>
+            <div style="display:flex; align-items:center; gap:22px; flex-wrap:wrap; margin-bottom:14px;">
+              <ProgressRing :percent="overallStats.avgPercent" :size="110" label="средний прогресс" />
+              <p style="font-size:13px; color:var(--text-mid); flex:1; min-width:200px;">
+                Пройдено модулей: {{ overallStats.completedModules }} из {{ overallStats.totalModules }} ·
+                Средний процент прохождения по тренингам: {{ overallStats.avgPercent }}%
+              </p>
+            </div>
             <div class="chart-bar-row" v-for="c in progress.courses" :key="c.course_id">
               <span class="chart-bar-label">{{ c.course_title }} — {{ c.modules_completed }}/{{ c.modules_total }} ({{ c.completion_percent }}%)</span>
               <div class="chart-bar-track"><div class="chart-bar-fill" :style="{ width: c.completion_percent + '%' }"></div></div>
