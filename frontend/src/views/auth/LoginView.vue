@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../store/auth'
 import { useUiStore } from '../../store/ui'
 import ThemeToggle from '../../components/common/ThemeToggle.vue'
+import WaveMascot from '../../components/common/WaveMascot.vue'
 
 const email = ref('anna@mail.com')
 const password = ref('')
@@ -37,6 +38,7 @@ async function handleLogin() {
   <div class="login-screen">
     <ThemeToggle />
     <div class="login-card" :class="{ leaving }">
+      <WaveMascot :size="118" :released="leaving" />
       <div class="logo">
         <span class="gem"><svg viewBox="0 0 16 22" fill="none"><path d="M8 0L16 6L8 22L0 6L8 0Z" stroke="#C9A66B" stroke-width="1.2"/><path d="M2 6H14M8 0V22M2 6L8 22L14 6" stroke="#C9A66B" stroke-width="0.7" opacity=".6"/></svg></span>COURSE
       </div>

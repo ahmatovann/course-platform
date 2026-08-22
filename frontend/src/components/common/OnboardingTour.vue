@@ -1,16 +1,16 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useAuthStore } from '../../store/auth'
+import WaveMascot from './WaveMascot.vue'
 
 const props = defineProps({
   links: { type: Array, required: true }, // [{to, label, icon}]
   descriptions: { type: Object, default: () => ({}) }, // { [to]: text }
 })
 
-// DEV: пока обсуждаем сценарий — тур показывается при каждом входе.
-// Когда согласуем финальный вид, поставить false, и тур будет всплывать
-// только один раз на пользователя (как и написано в тексте приветствия).
-const DEV_ALWAYS_SHOW = true
+// Тур — инструкция для тех, кто в первый раз: показывается один раз на
+// пользователя (флаг сохраняется в localStorage), дальше не всплывает.
+const DEV_ALWAYS_SHOW = false
 
 const auth = useAuthStore()
 const storageKey = computed(() => `onboarding_seen_${auth.user?.id ?? 'anon'}`)
@@ -105,7 +105,7 @@ const highlightStyle = computed(() => {
 
       <Transition name="tour-fade" mode="out-in">
         <div v-if="current.type === 'welcome'" key="welcome" class="tour-card tour-card--center">
-          <img src="/wave-hello-transparent.webp" alt="" class="tour-wave" />
+          <WaveMascot :size="150" class="tour-wave" />
           <h3>Привет! Рады видеть вас в COURSE</h3>
           <p>
             Слева — ваше меню: тренинги, тесты, чаты и новости. Быстро покажем,
@@ -178,11 +178,7 @@ const highlightStyle = computed(() => {
 }
 
 .tour-wave {
-  width: 180px;
-  height: 230px;
-  object-fit: contain;
   margin: 0 auto 6px;
-  display: block;
 }
 
 .tour-once-note {
