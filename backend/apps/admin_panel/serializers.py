@@ -138,28 +138,6 @@ class AdminLessonWriteSerializer(serializers.ModelSerializer):
         fields = ['title', 'order', 'description', 'video_url', 'video_file', 'duration_seconds']
 
 
-class AdminVideoSerializer(serializers.ModelSerializer):
-    """Плоское представление урока для библиотеки видео в админке —
-    с названием курса/модуля и размером файла на диске."""
-    course_id = serializers.IntegerField(source='module.course.id', read_only=True)
-    course_title = serializers.CharField(source='module.course.title', read_only=True)
-    module_title = serializers.CharField(source='module.title', read_only=True)
-    file_size = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Lesson
-        fields = [
-            'id', 'title', 'course_id', 'course_title', 'module_title',
-            'video_file', 'video_poster', 'duration_seconds', 'file_size',
-        ]
-
-    def get_file_size(self, obj):
-        try:
-            return obj.video_file.size if obj.video_file else None
-        except (ValueError, OSError):
-            return None
-
-
 class AdminMaterialWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Material

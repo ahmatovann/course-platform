@@ -3,47 +3,84 @@ import { onMounted, onUnmounted, ref, watch } from 'vue'
 import Sidebar from '../../components/common/Sidebar.vue'
 import { useUiStore } from '../../store/ui'
 import { useAdminStore } from '../../store/admin'
+import { iconForKind } from '../../utils/fileKind'
 import { adminLinks as links } from '../../nav'
 
 const ui = useUiStore()
 const admin = useAdminStore()
 
-// ===== Библиотека видео =====
+// ===== Библиотека материалов (все видео уроков + файлы уроков) =====
 const search = ref('')
-const courseFilter = ref('')
+const sortBy = ref('name_asc')
 let debounceTimer = null
 
-onMounted(async () => {
-  await Promise.all([admin.fetchVideos(), admin.fetchAdminCourses()])
-})
+onMounted(() => load())
 
-watch([search, courseFilter], () => {
+watch([search, sortBy], () => {
   if (debounceTimer) clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(() => {
-    admin.fetchVideos({ search: search.value || undefined, course: courseFilter.value || undefined })
-  }, 300)
+  debounceTimer = setTimeout(load, 300)
 })
 onUnmounted(() => { if (debounceTimer) clearTimeout(debounceTimer) })
 
+async function load() {
+  await admin.fetchMedia({ search: search.value || undefined, sort: sortBy.value })
+}
+
 function formatSize(bytes) {
   if (!bytes && bytes !== 0) return '—'
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} КБ`
+  if (bytes < 1024) return `${bytes} Б`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} КБ`
   return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`
 }
 
-function formatDuration(sec) {
-  if (!sec) return '—'
-  const m = Math.floor(sec / 60)
-  const s = Math.round(sec % 60)
+function formatDuration(seconds) {
+  if (!seconds) return ''
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-const playingVideo = ref(null)
-function openPlayer(v) {
-  playingVideo.value = v
+// ===== Переименование =====
+const renameItem = ref(null)
+const renameValue = ref('')
+
+function openRename(item) {
+  renameItem.value = item
+  renameValue.value = item.name
 }
-function closePlayer() {
-  playingVideo.value = null
+
+async function saveRename() {
+  const item = renameItem.value
+  if (!item || !renameValue.value.trim()) return
+  try {
+    if (item.type === 'video') {
+      await admin.renameLessonVideo(item.lesson_id, renameValue.value.trim())
+    } else {
+      await admin.renameMaterial(item.material_id, renameValue.value.trim())
+    }
+    ui.showToast('Название обновлено', 'success')
+    renameItem.value = null
+    await load()
+  } catch (e) {
+    ui.showToast('Не удалось переименовать', 'error')
+  }
+}
+
+// ===== Удаление =====
+async function removeItem(item) {
+  const what = item.type === 'video' ? 'видео' : 'файл'
+  if (!confirm(`Удалить ${what} «${item.name}»? Это уберёт его из урока.`)) return
+  try {
+    if (item.type === 'video') {
+      await admin.deleteLessonVideo(item.lesson_id)
+    } else {
+      await admin.deleteMaterial(item.material_id)
+    }
+    ui.showToast('Удалено', 'success')
+    await load()
+  } catch (e) {
+    ui.showToast('Не удалось удалить', 'error')
+  }
 }
 </script>
 
@@ -65,93 +102,61 @@ function closePlayer() {
         </div>
 
         <div class="mini-card" style="margin-top:20px;">
-          <h4>Видео уроков</h4>
-          <p style="color:var(--text-dim); font-size:12.5px; margin:-4px 0 14px;">Все загруженные видео по всем тренингам</p>
+          <h4>Материалы</h4>
+          <p style="color:var(--text-dim); font-size:12.5px; margin:-4px 0 14px;">Все загруженные видео уроков и файлы — в одном месте: где используются, размер, переименование и удаление</p>
 
           <div class="search-row">
-            <input class="search-input" v-model="search" placeholder="Поиск по названию урока, модуля или курса...">
-            <select v-model="courseFilter">
-              <option value="">Все тренинги</option>
-              <option v-for="c in admin.adminCourses" :key="c.id" :value="c.id">{{ c.title }}</option>
+            <input class="search-input" v-model="search" placeholder="Поиск по названию или тренингу...">
+            <select v-model="sortBy" title="Сортировка">
+              <option value="name_asc">Название А→Я</option>
+              <option value="name_desc">Название Я→А</option>
+              <option value="size_desc">Сначала большие</option>
+              <option value="size_asc">Сначала маленькие</option>
+              <option value="used_in_asc">По тренингу</option>
             </select>
           </div>
 
-          <div class="grid">
-            <div class="card" v-for="v in admin.videos" :key="v.id">
-              <div
-                class="video-thumb"
-                :style="v.video_poster ? { backgroundImage: `url(${v.video_poster})` } : {}"
-                @click="openPlayer(v)"
-              >
-                <span v-if="!v.video_poster" class="video-thumb-fallback">▶</span>
-                <span class="video-thumb-play">▶</span>
-                <span class="video-thumb-duration">{{ formatDuration(v.duration_seconds) }}</span>
-              </div>
-              <h3>{{ v.title }}</h3>
-              <p class="desc">
-                {{ v.course_title }} · {{ v.module_title }}<br>
-                Размер файла: {{ formatSize(v.file_size) }}
-              </p>
-              <button type="button" class="btn-ghost" style="width:100%" @click="openPlayer(v)">Смотреть</button>
-            </div>
-            <p v-if="admin.videos.length === 0" style="color:var(--text-dim); font-size:13px;">Видео не найдены.</p>
-          </div>
+          <table>
+            <thead>
+              <tr><th></th><th>Название</th><th>Тип</th><th>Размер</th><th>Где используется</th><th></th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in admin.media" :key="item.id">
+                <td style="width:56px;">
+                  <img v-if="item.thumb" :src="item.thumb" alt="" style="width:44px; height:44px; object-fit:cover; border-radius:8px; display:block;">
+                  <div v-else style="width:44px; height:44px; border-radius:8px; background:var(--navy-deep); display:flex; align-items:center; justify-content:center; font-size:18px; color:var(--gold);">
+                    {{ item.type === 'video' ? '▶' : iconForKind(item.file_kind) }}
+                  </div>
+                </td>
+                <td>
+                  <a :href="item.url" target="_blank" rel="noopener" style="color:var(--text-hi);">{{ item.name }}</a>
+                  <span v-if="item.duration_seconds" style="color:var(--text-dim); font-size:11.5px;"> · {{ formatDuration(item.duration_seconds) }}</span>
+                </td>
+                <td>{{ item.kind_label }}</td>
+                <td>{{ formatSize(item.size_bytes) }}</td>
+                <td style="color:var(--text-mid); font-size:12.5px;">{{ item.used_in }}</td>
+                <td class="row-actions">
+                  <button @click="openRename(item)" title="Изменить название">✎</button>
+                  <button @click="removeItem(item)" title="Удалить">✕</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p v-if="admin.media.length === 0" style="color:var(--text-dim); margin-top:12px;">Пока ничего не загружено — видео и файлы уроков появятся здесь автоматически.</p>
         </div>
       </div>
     </main>
 
-    <div class="modal-overlay" :class="{ active: playingVideo }" @click="closePlayer">
-      <div class="modal" style="max-width:720px" v-if="playingVideo" @click.stop>
-        <h3>{{ playingVideo.title }}</h3>
-        <p class="mod-sub">{{ playingVideo.course_title }} · {{ playingVideo.module_title }}</p>
-        <video
-          :src="playingVideo.video_file" :poster="playingVideo.video_poster || undefined"
-          controls autoplay style="width:100%; border-radius:10px; margin:12px 0; background:#000;"
-        ></video>
+    <div class="modal-overlay" :class="{ active: renameItem }">
+      <div class="modal" v-if="renameItem">
+        <h3>Переименовать</h3>
+        <p class="mod-sub">{{ renameItem.used_in }}</p>
+        <div class="field"><label>Название</label><input v-model="renameValue" @keyup.enter="saveRename"></div>
         <div class="modal-footer">
-          <button class="btn-ghost" @click="closePlayer">Закрыть</button>
+          <button class="btn-ghost" @click="renameItem = null">Отмена</button>
+          <button class="btn-primary" @click="saveRename">Сохранить</button>
         </div>
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.video-thumb {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  border-radius: 10px;
-  background: var(--navy-deep) center / cover no-repeat;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  overflow: hidden;
-  margin-bottom: 10px;
-}
-.video-thumb-fallback { font-size: 28px; color: var(--text-dim); }
-.video-thumb-play {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22px;
-  color: #fff;
-  background: rgba(0, 0, 0, 0.25);
-  opacity: 0;
-  transition: opacity 0.15s;
-}
-.video-thumb:hover .video-thumb-play { opacity: 1; }
-.video-thumb-duration {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 5px;
-  background: rgba(0, 0, 0, 0.6);
-  color: #fff;
-}
-</style>

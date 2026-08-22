@@ -3,12 +3,13 @@ from django.urls import path
 from .views import (
     StudentListView, CreateStudentView, ToggleStudentStatusView, StudentEnrollView,
     AdminCourseListView, AdminModuleUpdateView,
-    AdminLessonCreateView, AdminLessonUpdateDeleteView, AdminVideoListView,
+    AdminLessonCreateView, AdminLessonUpdateDeleteView, AdminLessonVideoDeleteView,
     AdminTestListView, AdminTestDetailView, AdminTestCreateView, AdminTestUpdateDeleteView,
     StudentProgressView, ModuleCompletionStatsView,
     AdminMaterialCreateView, AdminMaterialDeleteView,
     AdminCourseCreateView, AdminModuleCreateView,
     StudentProgressExportView, StudentsExportView,
+    AdminMediaListView,
 )
 
 urlpatterns = [
@@ -27,9 +28,10 @@ urlpatterns = [
     path('modules/<int:pk>/', AdminModuleUpdateView.as_view(), name='admin-module-update'),
     path('modules/<int:module_id>/lessons/', AdminLessonCreateView.as_view(), name='admin-lesson-create'),
     path('lessons/<int:pk>/', AdminLessonUpdateDeleteView.as_view(), name='admin-lesson-update-delete'),
-    path('videos/', AdminVideoListView.as_view(), name='admin-videos'),
+    path('lessons/<int:pk>/video/', AdminLessonVideoDeleteView.as_view(), name='admin-lesson-video-delete'),
     path('lessons/<int:lesson_id>/materials/', AdminMaterialCreateView.as_view(), name='admin-material-create'),
     path('materials/<int:pk>/', AdminMaterialDeleteView.as_view(), name='admin-material-delete'),
+    path('media/', AdminMediaListView.as_view(), name='admin-media'),
 
     path('tests/', AdminTestListView.as_view(), name='admin-tests'),
     path('tests/create/', AdminTestCreateView.as_view(), name='admin-tests-create'),

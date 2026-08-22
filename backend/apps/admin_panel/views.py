@@ -121,7 +121,7 @@ from rest_framework import generics as drf_generics  # noqa: E402
 from apps.courses.models import Course, Module, Lesson, Test  # noqa: E402
 from .serializers import (  # noqa: E402
     AdminCourseSerializer, AdminModuleUpdateSerializer, AdminModuleSerializer,
-    AdminLessonWriteSerializer, AdminLessonSerializer, AdminVideoSerializer,
+    AdminLessonWriteSerializer, AdminLessonSerializer,
     AdminTestSerializer, AdminTestWriteSerializer,
 )
 
@@ -198,27 +198,6 @@ class AdminLessonUpdateDeleteView(APIView):
         lesson = get_object_or_404(Lesson, pk=pk)
         lesson.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class AdminVideoListView(drf_generics.ListAPIView):
-    """Библиотека всех загруженных видео уроков — с поиском по названию
-    урока/модуля/курса (?search=) и фильтром по конкретному тренингу (?course=<id>)."""
-    serializer_class = AdminVideoSerializer
-    permission_classes = [IsAdmin]
-
-    def get_queryset(self):
-        qs = Lesson.objects.exclude(video_file='').exclude(video_file__isnull=True) \
-            .select_related('module', 'module__course').order_by('-id')
-        search = self.request.query_params.get('search', '').strip()
-        if search:
-            qs = qs.filter(
-                Q(title__icontains=search) | Q(module__title__icontains=search)
-                | Q(module__course__title__icontains=search)
-            )
-        course_id = self.request.query_params.get('course')
-        if course_id:
-            qs = qs.filter(module__course_id=course_id)
-        return qs
 
 
 # ===== Тесты =====
@@ -433,9 +412,37 @@ class AdminMaterialCreateView(APIView):
 class AdminMaterialDeleteView(APIView):
     permission_classes = [IsAdmin]
 
+    def patch(self, request, pk):
+        """Переименовать материал (и/или заменить сам файл) — используется
+        из библиотеки материалов в админке."""
+        material = get_object_or_404(Material, pk=pk)
+        serializer = AdminMaterialWriteSerializer(material, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(AdminMaterialSerializer(material).data)
+
     def delete(self, request, pk):
         material = get_object_or_404(Material, pk=pk)
         material.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AdminLessonVideoDeleteView(APIView):
+    """Убрать только видео (и связанные с ним превью/аудио-версию) урока,
+    не удаляя сам урок — отдельно от полного удаления урока, для
+    библиотеки материалов в админке."""
+    permission_classes = [IsAdmin]
+
+    def delete(self, request, pk):
+        lesson = get_object_or_404(Lesson, pk=pk)
+        lesson.video_file.delete(save=False)
+        lesson.video_poster.delete(save=False)
+        lesson.video_audio_file.delete(save=False)
+        lesson.video_file = None
+        lesson.video_poster = None
+        lesson.video_audio_file = None
+        lesson.duration_seconds = 0
+        lesson.save(update_fields=['video_file', 'video_poster', 'video_audio_file', 'duration_seconds'])
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -467,3 +474,101 @@ class AdminModuleCreateView(APIView):
             require_test_to_unlock_next=True, pass_threshold_percent=80, allow_downloads=True,
         )
         return Response(AdminModuleSerializer(module).data, status=status.HTTP_201_CREATED)
+
+
+# ===== Библиотека материалов (все загруженные видео уроков + материалы) =====
+# Единый список для админки: кадр/превью, размер, что это, где используется
+# (курс → модуль → урок), название — с переименованием и удалением на месте,
+# без необходимости заходить в конструктор тренинга ради каждого файла.
+
+MEDIA_KIND_LABELS = {
+    'image': 'Изображение', 'audio': 'Аудио', 'video': 'Видео',
+    'presentation': 'Презентация', 'pdf': 'PDF-документ', 'file': 'Файл',
+    'document': 'Документ Word', 'spreadsheet': 'Таблица Excel', 'archive': 'Архив', 'text': 'Текстовый файл',
+}
+
+
+def _file_size(field):
+    if not field:
+        return None
+    try:
+        return field.size
+    except (OSError, ValueError):
+        return None
+
+
+class AdminMediaListView(APIView):
+    """Список всех загруженных файлов (видео уроков + материалы уроков) с
+    поиском (?search=) по названию/месту использования и сортировкой
+    (?sort=name_asc|name_desc|size_asc|size_desc|used_in_asc|used_in_desc)."""
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        search = request.query_params.get('search', '').strip().lower()
+        sort = request.query_params.get('sort', 'name_asc')
+
+        items = []
+
+        lessons = (
+            Lesson.objects.exclude(video_file='').filter(video_file__isnull=False)
+            .select_related('module__course')
+        )
+        for lesson in lessons:
+            module = lesson.module
+            course = module.course
+            items.append({
+                'id': f'video-{lesson.id}',
+                'type': 'video',
+                'kind_label': 'Видео',
+                'name': lesson.title,
+                'thumb': request.build_absolute_uri(lesson.video_poster.url) if lesson.video_poster else None,
+                'size_bytes': _file_size(lesson.video_file),
+                'used_in': f'{course.title} → {module.title} → {lesson.title}',
+                'course_id': course.id,
+                'module_id': module.id,
+                'lesson_id': lesson.id,
+                'url': request.build_absolute_uri(lesson.video_file.url),
+                'duration_seconds': lesson.duration_seconds,
+            })
+
+        materials = (
+            Material.objects.exclude(file='').filter(file__isnull=False)
+            .select_related('lesson__module__course')
+        )
+        for material in materials:
+            lesson = material.lesson
+            module = lesson.module
+            course = module.course
+            items.append({
+                'id': f'material-{material.id}',
+                'type': 'material',
+                'kind_label': MEDIA_KIND_LABELS.get(material.kind, 'Файл'),
+                'name': material.name,
+                'thumb': request.build_absolute_uri(material.file.url) if material.kind == 'image' else None,
+                'size_bytes': _file_size(material.file),
+                'used_in': f'{course.title} → {module.title} → {lesson.title}',
+                'course_id': course.id,
+                'module_id': module.id,
+                'lesson_id': lesson.id,
+                'material_id': material.id,
+                'url': request.build_absolute_uri(material.file.url),
+                'file_kind': material.kind,
+            })
+
+        if search:
+            items = [
+                item for item in items
+                if search in item['name'].lower() or search in item['used_in'].lower()
+            ]
+
+        reverse = sort.endswith('_desc')
+        key_name = sort.rsplit('_', 1)[0] if sort.endswith(('_asc', '_desc')) else sort
+        key_funcs = {
+            'name': lambda i: i['name'].lower(),
+            'size': lambda i: i['size_bytes'] or 0,
+            'used_in': lambda i: i['used_in'].lower(),
+            'type': lambda i: i['type'],
+        }
+        items.sort(key=key_funcs.get(key_name, key_funcs['name']), reverse=reverse)
+
+        return Response(items)

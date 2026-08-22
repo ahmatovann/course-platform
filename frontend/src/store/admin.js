@@ -8,7 +8,7 @@ export const useAdminStore = defineStore('admin', {
     adminCourses: [],
     tests: [],
     moduleStats: [],
-    videos: [],
+    media: [],
   }),
   actions: {
     async fetchStudents(params = {}) {
@@ -107,6 +107,24 @@ export const useAdminStore = defineStore('admin', {
       await this.fetchAdminCourses()
     },
 
+    // ===== Библиотека материалов (все видео уроков + файлы уроков) =====
+    async fetchMedia(params = {}) {
+      const { data } = await client.get('/admin/media/', { params })
+      this.media = data
+      return data
+    },
+    async renameMaterial(id, name) {
+      const { data } = await client.patch(`/admin/materials/${id}/`, { name })
+      return data
+    },
+    async renameLessonVideo(lessonId, title) {
+      const { data } = await client.patch(`/admin/lessons/${lessonId}/`, { title })
+      return data
+    },
+    async deleteLessonVideo(lessonId) {
+      await client.delete(`/admin/lessons/${lessonId}/video/`)
+    },
+
     // ===== Тесты =====
     async fetchTests(params = {}) {
       const { data } = await client.get('/admin/tests/', { params })
@@ -139,13 +157,6 @@ export const useAdminStore = defineStore('admin', {
     async fetchModuleStats() {
       const { data } = await client.get('/admin/analytics/modules/')
       this.moduleStats = data
-      return data
-    },
-
-    // ===== Библиотека видео =====
-    async fetchVideos(params = {}) {
-      const { data } = await client.get('/admin/videos/', { params })
-      this.videos = data
       return data
     },
   },
