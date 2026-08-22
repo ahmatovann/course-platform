@@ -11,14 +11,11 @@ onMounted(async () => {
   await store.fetchNews()
 })
 
-function formatDate(iso) {
-  return new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+function formatDate(dateOnly) {
+  if (!dateOnly) return ''
+  return new Date(`${dateOnly}T00:00:00`).toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-function excerpt(text) {
-  if (!text) return ''
-  return text.length > 140 ? text.slice(0, 140).trim() + '…' : text
-}
 </script>
 
 <template>
@@ -32,12 +29,10 @@ function excerpt(text) {
           <div class="news-item" v-for="n in store.items" :key="n.id" @click="openItem = n">
             <div class="news-item-top">
               <h4>{{ n.title }}</h4>
-              <span class="news-date">{{ formatDate(n.starts_at) }}</span>
+              <span class="news-date">{{ formatDate(n.publish_at) }}</span>
             </div>
-            <p class="news-excerpt" v-if="n.description">{{ excerpt(n.description) }}</p>
+            <p class="news-excerpt news-excerpt-clamp" v-if="n.description">{{ n.description }}</p>
             <div class="news-item-bottom">
-              <span class="badge" :class="n.course_title ? 'locked' : 'ok'">{{ n.course_title || 'Для всех' }}</span>
-              <span v-if="n.link_url" class="badge" style="border-color:var(--gold); color:var(--gold);">Есть ссылка</span>
               <button class="news-more">Подробнее</button>
             </div>
           </div>
@@ -49,7 +44,7 @@ function excerpt(text) {
     <div class="modal-overlay" :class="{ active: openItem }">
       <div class="modal" v-if="openItem">
         <h3>{{ openItem.title }}</h3>
-        <p class="mod-sub">{{ formatDate(openItem.starts_at) }} · {{ openItem.course_title || 'Для всех' }}</p>
+        <p class="mod-sub">{{ formatDate(openItem.publish_at) }} · {{ openItem.course_title || 'Для всех' }}</p>
         <p class="news-full-text" v-if="openItem.description">{{ openItem.description }}</p>
         <p class="news-full-text" v-else style="color:var(--text-dim);">Без описания.</p>
         <p v-if="openItem.link_url"><a :href="openItem.link_url" target="_blank" rel="noopener" style="color:var(--gold);">{{ openItem.link_url }}</a></p>

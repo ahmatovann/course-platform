@@ -3,14 +3,26 @@ from django.db import models
 
 
 class ScheduleEvent(models.Model):
-    """Событие в расписании: занятие, дедлайн теста и т.д. Если course не
-    указан — событие общее и видно всем ученикам, иначе только тем, кто
-    записан на этот курс."""
+    """Новость. Если course не указан — новость общая и видна всем
+    ученикам, иначе только тем, кто записан на этот курс.
+
+    Время не хранится отдельным полем — если оно важно, администратор
+    просто указывает его текстом внутри описания; обе даты ниже — это
+    только даты (без времени)."""
 
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, default='')
     link_url = models.URLField(blank=True, default='', help_text='Необязательная ссылка на подробности/внешний ресурс')
-    starts_at = models.DateTimeField()
+    # Дата рассылки — новость становится видна ученикам начиная с этой
+    # даты (до неё видна только администратору как запланированная).
+    publish_at = models.DateField(help_text='Дата рассылки — с этой даты новость видна ученикам')
+    # Необязательная дата, после которой новость автоматически скрывается
+    # (архивируется) от учеников — сама запись при этом не удаляется,
+    # админ по-прежнему её видит и может отредактировать/вернуть.
+    hide_at = models.DateField(
+        null=True, blank=True,
+        help_text='Необязательно — после этой даты новость скрывается от учеников',
+    )
     course = models.ForeignKey(
         'courses.Course', on_delete=models.CASCADE, null=True, blank=True, related_name='schedule_events'
     )
@@ -20,7 +32,7 @@ class ScheduleEvent(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['starts_at']
+        ordering = ['-publish_at', '-id']
 
     def __str__(self):
-        return f'{self.starts_at:%d.%m.%Y %H:%M} — {self.title}'
+        return f'{self.publish_at:%d.%m.%Y} — {self.title}'

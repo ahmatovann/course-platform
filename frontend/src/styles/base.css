@@ -527,7 +527,12 @@
     .news-item-top h4 { font-size: 15px; font-weight: 600; }
     .news-date { font-size: 12px; color: var(--text-dim); white-space: nowrap; flex-shrink: 0; }
     .news-excerpt { font-size: 12.5px; color: var(--text-dim); line-height: 1.5; margin-top: 8px; overflow-wrap: anywhere; }
-    .news-item-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+    /* Показываем не больше 3 строк описания в карточке — дальше «…» и
+       полный текст открывается через «Подробнее». */
+    .news-excerpt-clamp {
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap;
+    }
+    .news-item-bottom { display: flex; align-items: center; justify-content: flex-end; margin-top: 12px; }
     .news-more { font-size: 12px; color: var(--gold); font-weight: 600; background: none; }
     .news-full-text { font-size: 13.5px; color: var(--text-mid); line-height: 1.6; margin-top: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
 

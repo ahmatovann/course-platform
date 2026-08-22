@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import Sidebar from '../../components/common/Sidebar.vue'
 import { useNewsStore } from '../../store/news'
 import { useAdminStore } from '../../store/admin'
@@ -11,9 +11,11 @@ const admin = useAdminStore()
 const ui = useUiStore()
 const showModal = ref(false)
 const viewItem = ref(null)
-const form = reactive({ title: '', description: '', link_url: '', starts_at: '', course: null })
+const editingId = ref(null)
+const form = reactive({ title: '', description: '', link_url: '', publish_at: '', hide_at: '', course: null })
 const search = ref('')
 const courseFilter = ref('')
+const sortBy = ref('publish_desc')
 let debounceTimer = null
 
 onMounted(async () => {
@@ -29,18 +31,53 @@ watch([search, courseFilter], () => {
 })
 onUnmounted(() => { if (debounceTimer) clearTimeout(debounceTimer) })
 
+const statusLabels = { scheduled: 'Запланирована', published: 'Опубликована', hidden: 'Скрыта' }
+const statusClass = { scheduled: 'pending', published: 'ok', hidden: 'locked' }
+
+// Сортировка списка новостей — по дате рассылки или по названию, рядом с
+// поиском/фильтром по тренингу.
+const sortedItems = computed(() => {
+  const items = [...store.items]
+  switch (sortBy.value) {
+    case 'publish_asc':
+      return items.sort((a, b) => a.publish_at.localeCompare(b.publish_at))
+    case 'title_asc':
+      return items.sort((a, b) => a.title.localeCompare(b.title, 'ru'))
+    case 'title_desc':
+      return items.sort((a, b) => b.title.localeCompare(a.title, 'ru'))
+    case 'publish_desc':
+    default:
+      return items.sort((a, b) => b.publish_at.localeCompare(a.publish_at))
+  }
+})
+
 function openCreate() {
+  editingId.value = null
   form.title = ''
   form.description = ''
   form.link_url = ''
-  form.starts_at = ''
+  // Дата рассылки по умолчанию — сегодня (новость публикуется сразу),
+  // администратор при необходимости переносит её на будущее.
+  form.publish_at = new Date().toISOString().slice(0, 10)
+  form.hide_at = ''
   form.course = null
   showModal.value = true
 }
 
-// Ученик может ввести ссылку без «https://» (просто example.com) — сервер
-// такое не примет как валидный URL, поэтому молча дополняем схему сами,
-// чтобы не спотыкаться на этом при сохранении.
+function openEdit(n) {
+  editingId.value = n.id
+  form.title = n.title
+  form.description = n.description || ''
+  form.link_url = n.link_url || ''
+  form.publish_at = n.publish_at
+  form.hide_at = n.hide_at || ''
+  form.course = n.course
+  showModal.value = true
+}
+
+// Администратор может ввести ссылку без «https://» (просто example.com) —
+// сервер такое не примет как валидный URL, поэтому молча дополняем схему
+// сами, чтобы не спотыкаться на этом при сохранении.
 function normalizeLink(url) {
   const trimmed = (url || '').trim()
   if (!trimmed) return ''
@@ -49,14 +86,24 @@ function normalizeLink(url) {
 }
 
 async function save() {
-  if (!form.title.trim() || !form.starts_at) { ui.showToast('Укажите название и дату', 'error'); return }
+  if (!form.title.trim() || !form.publish_at) { ui.showToast('Укажите название и дату рассылки', 'error'); return }
+  if (form.hide_at && form.hide_at <= form.publish_at) {
+    ui.showToast('Дата скрытия должна быть позже даты рассылки', 'error')
+    return
+  }
+  const payload = {
+    ...form,
+    link_url: normalizeLink(form.link_url),
+    hide_at: form.hide_at || null,
+  }
   try {
-    await store.createNews({
-      ...form,
-      link_url: normalizeLink(form.link_url),
-      starts_at: new Date(form.starts_at).toISOString(),
-    })
-    ui.showToast('Новость добавлена', 'success')
+    if (editingId.value) {
+      await store.updateNews(editingId.value, payload)
+      ui.showToast('Новость обновлена', 'success')
+    } else {
+      await store.createNews(payload)
+      ui.showToast('Новость добавлена', 'success')
+    }
     showModal.value = false
   } catch (e) {
     const msg = e.response?.data ? Object.values(e.response.data).flat().join(' ') : 'Ошибка сохранения'
@@ -70,8 +117,9 @@ async function remove(id) {
   ui.showToast('Новость удалена', 'success')
 }
 
-function formatDate(iso) {
-  return new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+function formatDate(dateOnly) {
+  if (!dateOnly) return '—'
+  return new Date(`${dateOnly}T00:00:00`).toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
 function excerpt(text) {
@@ -86,7 +134,7 @@ function excerpt(text) {
     <main class="main">
       <div class="view active">
         <div class="main-header">
-          <div><h1>Новости</h1><p>Видят ученики выбранного тренинга (или все, если тренинг не указан)</p></div>
+          <div><h1>Новости</h1><p>Видят ученики выбранного тренинга (или все, если тренинг не указан) начиная с даты рассылки</p></div>
           <button class="btn-primary" style="width:auto; padding:12px 22px" @click="openCreate">+ Добавить новость</button>
         </div>
         <div class="search-row">
@@ -96,12 +144,20 @@ function excerpt(text) {
             <option value="none">Только общие</option>
             <option v-for="c in admin.adminCourses" :key="c.id" :value="c.id">{{ c.title }}</option>
           </select>
+          <select v-model="sortBy">
+            <option value="publish_desc">Сначала новые</option>
+            <option value="publish_asc">Сначала старые</option>
+            <option value="title_asc">По названию А→Я</option>
+            <option value="title_desc">По названию Я→А</option>
+          </select>
         </div>
         <table>
-          <thead><tr><th>Дата</th><th>Новость</th><th>Описание</th><th>Ссылка</th><th>Тренинг</th><th></th></tr></thead>
+          <thead><tr><th>Дата рассылки</th><th>Скрыть после</th><th>Статус</th><th>Новость</th><th>Описание</th><th>Ссылка</th><th>Тренинг</th><th></th></tr></thead>
           <tbody>
-            <tr v-for="n in store.items" :key="n.id">
-              <td>{{ formatDate(n.starts_at) }}</td>
+            <tr v-for="n in sortedItems" :key="n.id">
+              <td>{{ formatDate(n.publish_at) }}</td>
+              <td>{{ n.hide_at ? formatDate(n.hide_at) : '—' }}</td>
+              <td><span class="badge" :class="statusClass[n.status]">{{ statusLabels[n.status] }}</span></td>
               <td>{{ n.title }}</td>
               <td>
                 <span v-if="n.description" style="cursor:pointer; color:var(--gold);" @click="viewItem = n">{{ excerpt(n.description) }}</span>
@@ -112,21 +168,36 @@ function excerpt(text) {
                 <span v-else style="color:var(--text-dim);">—</span>
               </td>
               <td>{{ n.course_title || 'Для всех' }}</td>
-              <td class="row-actions"><button @click="remove(n.id)" title="Удалить">✕</button></td>
+              <td class="row-actions">
+                <button @click="openEdit(n)" title="Изменить">✎</button>
+                <button @click="remove(n.id)" title="Удалить">✕</button>
+              </td>
             </tr>
           </tbody>
         </table>
-        <p v-if="store.items.length === 0" style="color:var(--text-dim); margin-top:12px;">Новостей пока нет.</p>
+        <p v-if="sortedItems.length === 0" style="color:var(--text-dim); margin-top:12px;">Новостей пока нет.</p>
       </div>
     </main>
 
     <div class="modal-overlay" :class="{ active: showModal }">
       <div class="modal">
-        <h3>Новая новость</h3>
+        <h3>{{ editingId ? 'Редактирование новости' : 'Новая новость' }}</h3>
         <div class="field"><label>Название</label><input v-model="form.title" placeholder="Открытие урока «Скулы и контуринг»"></div>
-        <div class="field"><label>Описание</label><textarea v-model="form.description" rows="4" placeholder="Подробности новости — необязательно"></textarea></div>
+        <div class="field">
+          <label>Описание</label>
+          <textarea v-model="form.description" rows="4" placeholder="Подробности новости — если важно время, укажите его прямо здесь в тексте (например «в 18:00»)"></textarea>
+        </div>
         <div class="field"><label>Ссылка (необязательно)</label><input type="url" v-model="form.link_url" placeholder="https://..."></div>
-        <div class="field"><label>Дата и время</label><input type="datetime-local" v-model="form.starts_at"></div>
+        <div class="field">
+          <label>Дата рассылки</label>
+          <input type="date" v-model="form.publish_at">
+          <div class="hint">С этой даты новость видна ученикам. Время — если нужно — впишите прямо в описание выше.</div>
+        </div>
+        <div class="field">
+          <label>Дата скрытия (необязательно)</label>
+          <input type="date" v-model="form.hide_at">
+          <div class="hint">После этой даты новость автоматически перестанет быть видна ученикам (сама запись не удаляется).</div>
+        </div>
         <div class="field">
           <label>Тренинг (необязательно — иначе видят все ученики)</label>
           <select v-model="form.course">
@@ -136,7 +207,7 @@ function excerpt(text) {
         </div>
         <div class="modal-footer">
           <button class="btn-ghost" @click="showModal = false">Отмена</button>
-          <button class="btn-primary" @click="save">Добавить</button>
+          <button class="btn-primary" @click="save">{{ editingId ? 'Сохранить' : 'Добавить' }}</button>
         </div>
       </div>
     </div>
@@ -144,7 +215,7 @@ function excerpt(text) {
     <div class="modal-overlay" :class="{ active: viewItem }">
       <div class="modal" v-if="viewItem">
         <h3>{{ viewItem.title }}</h3>
-        <p class="mod-sub">{{ formatDate(viewItem.starts_at) }} · {{ viewItem.course_title || 'Для всех' }}</p>
+        <p class="mod-sub">{{ formatDate(viewItem.publish_at) }} · {{ viewItem.course_title || 'Для всех' }}</p>
         <p class="news-full-text">{{ viewItem.description }}</p>
         <p v-if="viewItem.link_url"><a :href="viewItem.link_url" target="_blank" rel="noopener" style="color:var(--gold);">{{ viewItem.link_url }}</a></p>
         <div class="modal-footer">

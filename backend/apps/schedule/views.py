@@ -1,5 +1,6 @@
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -14,7 +15,10 @@ from .serializers import ScheduleEventSerializer, ScheduleEventWriteSerializer
 
 
 class ScheduleListView(generics.ListAPIView):
-    """Ученику показываем события его курсов и общие события; админу — всё.
+    """Ученику показываем только уже опубликованные новости (дата рассылки
+    наступила и, если задана, дата скрытия ещё не наступила) его курсов и
+    общие; админу — вообще всё, включая ещё не опубликованные (в статусе
+    «запланирована») и уже скрытые, чтобы ими можно было управлять.
     Админ дополнительно может искать по названию/описанию (?search=) и
     фильтровать по тренингу (?course=<id>, course=none — только общие)."""
     serializer_class = ScheduleEventSerializer
@@ -33,6 +37,9 @@ class ScheduleListView(generics.ListAPIView):
             elif course_param:
                 qs = qs.filter(course_id=course_param)
             return qs.all()
+
+        today = timezone.localdate()
+        qs = qs.filter(publish_at__lte=today).filter(Q(hide_at__isnull=True) | Q(hide_at__gt=today))
         course_ids = Course.objects.filter(enrollments__user=user).values_list('id', flat=True)
         return qs.filter(Q(course__isnull=True) | Q(course_id__in=course_ids))
 
@@ -45,12 +52,19 @@ class ScheduleCreateView(APIView):
         serializer.is_valid(raise_exception=True)
         event = serializer.save(created_by=request.user)
 
-        User = request.user.__class__
-        if event.course_id:
-            recipients = User.objects.filter(enrollments__course_id=event.course_id).distinct()
-        else:
-            recipients = User.objects.filter(role='student')
-        notify_many(list(recipients), f'Новая новость: «{event.title}»', url='/news')
+        # «Дата рассылки» здесь управляет только видимостью (публикацией) —
+        # никакой реальной отправки email/push нет. Уведомление в
+        # колокольчик отправляем сразу только если новость уже опубликована
+        # (дата рассылки — сегодня или раньше); для новости, запланированной
+        # на будущее, уведомление не шлётся — она просто станет видна сама,
+        # когда наступит указанная дата.
+        if event.publish_at <= timezone.localdate():
+            User = request.user.__class__
+            if event.course_id:
+                recipients = User.objects.filter(enrollments__course_id=event.course_id).distinct()
+            else:
+                recipients = User.objects.filter(role='student')
+            notify_many(list(recipients), f'Новая новость: «{event.title}»', url='/news')
 
         return Response(ScheduleEventSerializer(event).data, status=status.HTTP_201_CREATED)
 
