@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import Sidebar from '../../components/common/Sidebar.vue'
 import { useAdminStore } from '../../store/admin'
 import { useCoursesStore } from '../../store/courses'
@@ -11,7 +11,21 @@ const admin = useAdminStore()
 const courses = useCoursesStore()
 const ui = useUiStore()
 const search = ref('')
+const sortBy = ref('title_asc')
 let debounceTimer = null
+
+const sortedTests = computed(() => {
+  const list = [...admin.tests]
+  switch (sortBy.value) {
+    case 'title_desc':
+      return list.sort((a, b) => b.title.localeCompare(a.title, 'ru'))
+    case 'module':
+      return list.sort((a, b) => a.module_title.localeCompare(b.module_title, 'ru'))
+    case 'title_asc':
+    default:
+      return list.sort((a, b) => a.title.localeCompare(b.title, 'ru'))
+  }
+})
 
 const showModal = ref(false)
 const editingId = ref(null)
@@ -123,9 +137,14 @@ async function remove(id) {
         </div>
         <div class="search-row">
           <input class="search-input" v-model="search" placeholder="Поиск по названию теста...">
+          <select v-model="sortBy" title="Сортировка">
+            <option value="title_asc">Название А→Я</option>
+            <option value="title_desc">Название Я→А</option>
+            <option value="module">По модулю</option>
+          </select>
         </div>
         <div class="grid">
-          <div class="card" v-for="t in admin.tests" :key="t.id">
+          <div class="card" v-for="t in sortedTests" :key="t.id">
             <span class="badge ok">Тест</span>
             <h3>{{ t.title }}</h3>
             <p class="desc">{{ t.module_title }} · {{ t.questions.length }} вопросов</p>
