@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import Sidebar from './Sidebar.vue'
 import { useChatsStore } from '../../store/chats'
 import { useUiStore } from '../../store/ui'
+import { useAuthStore } from '../../store/auth'
 import { dayKey, dayLabel, timeLabel } from '../../utils/dates'
 
 defineProps({
@@ -11,6 +12,7 @@ defineProps({
 
 const store = useChatsStore()
 const ui = useUiStore()
+const auth = useAuthStore()
 const openThreadId = ref(null)
 const draft = ref('')
 const scrollEl = ref(null)
@@ -58,6 +60,21 @@ async function toggleFavorite(message) {
 
 function fileIsImage(name) {
   return /\.(png|jpe?g|gif|webp|svg)$/i.test(name || '')
+}
+
+// Если файл голосового сообщения по какой-то причине недоступен на сервере
+// (например, поврежденная/устаревшая запись), плеер молча оставался бы
+// пустым без единого признака ошибки — ученик слышал тишину и не понимал,
+// в чём дело. Показываем явную подпись вместо немого плеера.
+function onAudioError(e) {
+  const el = e.target
+  if (el.dataset.errorShown) return
+  el.dataset.errorShown = '1'
+  el.style.display = 'none'
+  const note = document.createElement('div')
+  note.className = 'chat-bubble-audio-error'
+  note.textContent = 'Голосовое сообщение недоступно'
+  el.insertAdjacentElement('afterend', note)
 }
 
 // Голосовые сообщения: запись через MediaRecorder — доступно в любом чате.
@@ -245,9 +262,22 @@ watch(() => store.messages.length, scrollToBottom)
                     <div class="chat-bubble">
                       <div class="chat-bubble-who" v-if="!item.is_mine">{{ item.sender_name }}</div>
 
-                      <p v-if="item.deleted_for_everyone" class="chat-bubble-deleted">Сообщение удалено</p>
-                      <template v-else>
+                      <!-- Админ видит содержимое удалённых «у всех» сообщений (с пометкой,
+                           когда удалено) — обычные участники чата об этом не знают и
+                           по-прежнему видят просто «Сообщение удалено». См. ChatMessageSerializer. -->
+                      <template v-if="item.deleted_for_everyone && auth.isAdmin">
+                        <div class="chat-bubble-deleted-admin-tag">🛈 Удалено{{ item.deleted_at ? ' · ' + timeLabel(item.deleted_at) : '' }} (видно только администратору)</div>
                         <audio v-if="item.audio_file" class="chat-bubble-audio" controls controlsList="nodownload" :src="item.audio_file"></audio>
+                        <a v-if="item.file" class="chat-bubble-file" :href="item.file" target="_blank" rel="noopener">
+                          <img v-if="fileIsImage(item.file_name)" :src="item.file" class="chat-bubble-file-thumb" alt="">
+                          <span v-else class="chat-bubble-file-icon">📎</span>
+                          <span class="chat-bubble-file-name">{{ item.file_name || 'Файл' }}</span>
+                        </a>
+                        <div class="chat-bubble-text" v-if="item.text">{{ item.text }}</div>
+                      </template>
+                      <p v-else-if="item.deleted_for_everyone" class="chat-bubble-deleted">Сообщение удалено</p>
+                      <template v-else>
+                        <audio v-if="item.audio_file" class="chat-bubble-audio" controls controlsList="nodownload" :src="item.audio_file" @error="onAudioError"></audio>
                         <a v-if="item.file" class="chat-bubble-file" :href="item.file" target="_blank" rel="noopener">
                           <img v-if="fileIsImage(item.file_name)" :src="item.file" class="chat-bubble-file-thumb" alt="">
                           <span v-else class="chat-bubble-file-icon">📎</span>

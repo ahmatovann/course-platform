@@ -51,7 +51,11 @@ class ChatMessage(models.Model):
     file = models.FileField(upload_to='chats/files/', blank=True, null=True)
     file_name = models.CharField(max_length=255, blank=True, default='')
     # «Удалить у всех» — сообщение считается удалённым для всех участников.
+    # Содержимое при этом НЕ стирается из базы (см. deleted_at) — это нужно,
+    # чтобы администратор мог просматривать удалённые сообщения в модерации;
+    # обычным пользователям содержимое всё равно скрывается на уровне сериализатора.
     deleted_for_everyone = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
     # «Удалить у меня» — сообщение скрыто только для перечисленных пользователей.
     deleted_for = models.ManyToManyField(
         settings.AUTH_USER_MODEL, blank=True, related_name='hidden_chat_messages',

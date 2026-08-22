@@ -1,5 +1,6 @@
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -85,12 +86,13 @@ class ChatMessageActionView(APIView):
                     {'detail': 'Удалить у всех может только автор сообщения'},
                     status=status.HTTP_403_FORBIDDEN,
                 )
+            # Содержимое физически НЕ стираем из базы (см. models.ChatMessage) —
+            # администратор может видеть удалённые сообщения при модерации
+            # (обычным участникам чата контент всё равно скрыт — см.
+            # ChatMessageSerializer). Обычные пользователи об этом не знают.
             message.deleted_for_everyone = True
-            message.text = ''
-            message.audio_file = None
-            message.file = None
-            message.file_name = ''
-            message.save(update_fields=['deleted_for_everyone', 'text', 'audio_file', 'file', 'file_name'])
+            message.deleted_at = timezone.now()
+            message.save(update_fields=['deleted_for_everyone', 'deleted_at'])
         else:
             message.deleted_for.add(request.user)
 
