@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import Sidebar from '../../components/common/Sidebar.vue'
 import ProgressBar from '../../components/learner/ProgressBar.vue'
+import AvatarCropper from '../../components/common/AvatarCropper.vue'
 import { useAuthStore } from '../../store/auth'
 import { useUiStore } from '../../store/ui'
 import { useCoursesStore } from '../../store/courses'
@@ -57,6 +58,10 @@ function pickAvatar() {
   avatarInput.value?.click()
 }
 
+// Фото сначала идёт в редактор кадрирования (кроп под ровный квадрат
+// нужного размера) — сохраняем как pendingAvatarFile только результат кропа.
+const cropperFile = ref(null)
+
 function onAvatarChosen(e) {
   const file = e.target.files?.[0]
   e.target.value = ''
@@ -65,8 +70,13 @@ function onAvatarChosen(e) {
     ui.showToast('Выберите файл изображения', 'error')
     return
   }
-  pendingAvatarFile.value = file
-  avatarPreview.value = URL.createObjectURL(file)
+  cropperFile.value = file
+}
+
+function onCropSave(croppedFile) {
+  pendingAvatarFile.value = croppedFile
+  avatarPreview.value = URL.createObjectURL(croppedFile)
+  cropperFile.value = null
 }
 
 // Бесплатные сгенерированные аватарки через DiceBear (без ключей и регистрации).
@@ -281,5 +291,7 @@ function courseStatus(c) {
       <button type="button" class="avatar-lightbox-close" @click="showAvatarLightbox = false" aria-label="Закрыть">×</button>
       <img v-if="avatarPreview" :src="avatarPreview" class="avatar-lightbox-img" alt="Фото профиля" @click.stop>
     </div>
+
+    <AvatarCropper :file="cropperFile" @save="onCropSave" @cancel="cropperFile = null" />
   </div>
 </template>
