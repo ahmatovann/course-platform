@@ -8,6 +8,7 @@ export const useAdminStore = defineStore('admin', {
     adminCourses: [],
     tests: [],
     moduleStats: [],
+    videos: [],
   }),
   actions: {
     async fetchStudents(params = {}) {
@@ -138,6 +139,13 @@ export const useAdminStore = defineStore('admin', {
     async fetchModuleStats() {
       const { data } = await client.get('/admin/analytics/modules/')
       this.moduleStats = data
+      return data
+    },
+
+    // ===== Библиотека видео =====
+    async fetchVideos(params = {}) {
+      const { data } = await client.get('/admin/videos/', { params })
+      this.videos = data
       return data
     },
   },

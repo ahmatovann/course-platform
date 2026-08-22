@@ -121,7 +121,7 @@ from rest_framework import generics as drf_generics  # noqa: E402
 from apps.courses.models import Course, Module, Lesson, Test  # noqa: E402
 from .serializers import (  # noqa: E402
     AdminCourseSerializer, AdminModuleUpdateSerializer, AdminModuleSerializer,
-    AdminLessonWriteSerializer, AdminLessonSerializer,
+    AdminLessonWriteSerializer, AdminLessonSerializer, AdminVideoSerializer,
     AdminTestSerializer, AdminTestWriteSerializer,
 )
 
@@ -198,6 +198,27 @@ class AdminLessonUpdateDeleteView(APIView):
         lesson = get_object_or_404(Lesson, pk=pk)
         lesson.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AdminVideoListView(drf_generics.ListAPIView):
+    """Библиотека всех загруженных видео уроков — с поиском по названию
+    урока/модуля/курса (?search=) и фильтром по конкретному тренингу (?course=<id>)."""
+    serializer_class = AdminVideoSerializer
+    permission_classes = [IsAdmin]
+
+    def get_queryset(self):
+        qs = Lesson.objects.exclude(video_file='').exclude(video_file__isnull=True) \
+            .select_related('module', 'module__course').order_by('-id')
+        search = self.request.query_params.get('search', '').strip()
+        if search:
+            qs = qs.filter(
+                Q(title__icontains=search) | Q(module__title__icontains=search)
+                | Q(module__course__title__icontains=search)
+            )
+        course_id = self.request.query_params.get('course')
+        if course_id:
+            qs = qs.filter(module__course_id=course_id)
+        return qs
 
 
 # ===== Тесты =====
