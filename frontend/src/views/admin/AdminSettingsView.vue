@@ -5,6 +5,7 @@ import { useUiStore } from '../../store/ui'
 import { useAdminStore } from '../../store/admin'
 import { useAuthStore } from '../../store/auth'
 import AvatarCropper from '../../components/common/AvatarCropper.vue'
+import VideoTrimModal from '../../components/common/VideoTrimModal.vue'
 import { iconForKind } from '../../utils/fileKind'
 import { adminLinks as links } from '../../nav'
 
@@ -135,6 +136,18 @@ async function saveRename() {
   }
 }
 
+// ===== Обрезка видео =====
+const trimTarget = ref(null)
+
+function openTrim(item) {
+  trimTarget.value = { lessonId: item.lesson_id, videoUrl: item.url, duration: item.duration_seconds }
+}
+
+async function onTrimmed() {
+  trimTarget.value = null
+  await load()
+}
+
 // ===== Удаление =====
 async function removeItem(item) {
   const what = item.type === 'video' ? 'видео' : 'файл'
@@ -226,6 +239,7 @@ async function removeItem(item) {
                 <td>{{ formatSize(item.size_bytes) }}</td>
                 <td style="color:var(--text-mid); font-size:12.5px;">{{ item.used_in }}</td>
                 <td class="row-actions">
+                  <button v-if="item.type === 'video'" @click="openTrim(item)" title="Обрезать видео">✂</button>
                   <button @click="openRename(item)" title="Изменить название">✎</button>
                   <button @click="removeItem(item)" title="Удалить">✕</button>
                 </td>
@@ -255,5 +269,6 @@ async function removeItem(item) {
     </div>
 
     <AvatarCropper :file="cropperFile" @save="onCropSave" @cancel="cropperFile = null" />
+    <VideoTrimModal :video="trimTarget" @trimmed="onTrimmed" @cancel="trimTarget = null" />
   </div>
 </template>

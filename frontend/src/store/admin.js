@@ -124,6 +124,10 @@ export const useAdminStore = defineStore('admin', {
     async deleteLessonVideo(lessonId) {
       await client.delete(`/admin/lessons/${lessonId}/video/`)
     },
+    async trimLessonVideo(lessonId, start, end) {
+      const { data } = await client.post(`/admin/lessons/${lessonId}/video/trim/`, { start, end })
+      return data
+    },
 
     // ===== Тесты =====
     async fetchTests(params = {}) {

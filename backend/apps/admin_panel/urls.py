@@ -3,7 +3,7 @@ from django.urls import path
 from .views import (
     StudentListView, CreateStudentView, ToggleStudentStatusView, StudentEnrollView,
     AdminCourseListView, AdminModuleUpdateView,
-    AdminLessonCreateView, AdminLessonUpdateDeleteView, AdminLessonVideoDeleteView,
+    AdminLessonCreateView, AdminLessonUpdateDeleteView, AdminLessonVideoDeleteView, AdminLessonVideoTrimView,
     AdminTestListView, AdminTestDetailView, AdminTestCreateView, AdminTestUpdateDeleteView,
     StudentProgressView, ModuleCompletionStatsView,
     AdminMaterialCreateView, AdminMaterialDeleteView,
@@ -29,6 +29,7 @@ urlpatterns = [
     path('modules/<int:module_id>/lessons/', AdminLessonCreateView.as_view(), name='admin-lesson-create'),
     path('lessons/<int:pk>/', AdminLessonUpdateDeleteView.as_view(), name='admin-lesson-update-delete'),
     path('lessons/<int:pk>/video/', AdminLessonVideoDeleteView.as_view(), name='admin-lesson-video-delete'),
+    path('lessons/<int:pk>/video/trim/', AdminLessonVideoTrimView.as_view(), name='admin-lesson-video-trim'),
     path('lessons/<int:lesson_id>/materials/', AdminMaterialCreateView.as_view(), name='admin-material-create'),
     path('materials/<int:pk>/', AdminMaterialDeleteView.as_view(), name='admin-material-delete'),
     path('media/', AdminMediaListView.as_view(), name='admin-media'),

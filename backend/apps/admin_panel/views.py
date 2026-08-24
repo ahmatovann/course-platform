@@ -446,6 +446,39 @@ class AdminLessonVideoDeleteView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class AdminLessonVideoTrimView(APIView):
+    """Обрезать уже загруженное видео урока по началу/концу (в секундах) —
+    без повторной загрузки файла. Используется и из конструктора тренинга,
+    и из библиотеки материалов в админке."""
+    permission_classes = [IsAdmin]
+
+    def post(self, request, pk):
+        from apps.courses.media_utils import trim_lesson_video
+
+        lesson = get_object_or_404(Lesson, pk=pk)
+        if not lesson.video_file:
+            return Response({'detail': 'У урока нет видео'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            start = float(request.data.get('start'))
+            end = float(request.data.get('end'))
+        except (TypeError, ValueError):
+            return Response({'detail': 'Некорректные начало/конец'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if start < 0 or end <= start:
+            return Response({'detail': 'Конец должен быть позже начала'}, status=status.HTTP_400_BAD_REQUEST)
+        if lesson.duration_seconds and end > lesson.duration_seconds + 1:
+            return Response({'detail': 'Конец не может быть длиннее видео'}, status=status.HTTP_400_BAD_REQUEST)
+
+        ok = trim_lesson_video(lesson, start, end)
+        if not ok:
+            return Response(
+                {'detail': 'Не удалось обрезать видео — попробуйте ещё раз'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        return Response(AdminLessonSerializer(lesson).data)
+
+
 # ===== Создание курсов и модулей =====
 
 from .serializers import AdminCourseWriteSerializer, AdminModuleWriteSerializer  # noqa: E402

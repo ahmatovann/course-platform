@@ -218,3 +218,90 @@ def transcode_lesson_video(lesson):
     finally:
         if os.path.exists(tmp_out):
             os.remove(tmp_out)
+
+
+def trim_lesson_video(lesson, start, end):
+    """
+    Обрезает lesson.video_file до отрезка [start; end] (в секундах) «на
+    месте» — заменяет сам файл, пересчитывает duration_seconds и
+    перегенерирует превью-кадр (иначе он мог бы остаться от вырезанной
+    части видео). Перекодируем, а не просто копируем поток (-c copy),
+    чтобы обрезка была точной по кадрам, а не только по ближайшему
+    ключевому кадру, и чтобы результат остался в том же web-совместимом
+    формате (H.264+AAC/MP4).
+
+    Возвращает True при успехе, False если обрезать не удалось (в этом
+    случае вызывающий код должен вернуть ошибку клиенту, а не тихо
+    промолчать — в отличие от transcode_lesson_video, где исходный файл
+    остаётся рабочим и без перекодирования).
+    """
+    if not lesson.video_file:
+        return False
+    if not ffmpeg_available():
+        return False
+
+    try:
+        src_path = lesson.video_file.path
+    except (ValueError, NotImplementedError):
+        return False
+    if not os.path.exists(src_path):
+        return False
+
+    fd, tmp_out = tempfile.mkstemp(suffix='.mp4')
+    os.close(fd)
+    old_path = src_path
+    old_name = lesson.video_file.name
+    try:
+        cmd = [
+            FFMPEG_BIN, '-y', '-i', src_path,
+            '-ss', str(start), '-to', str(end),
+            '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23',
+            '-c:a', 'aac', '-b:a', '128k', '-ac', '2',
+            '-movflags', '+faststart',
+            tmp_out,
+        ]
+        result = subprocess.run(cmd, capture_output=True, timeout=900)
+        if result.returncode != 0 or not os.path.exists(tmp_out) or os.path.getsize(tmp_out) == 0:
+            logger.warning(
+                'ffmpeg не смог обрезать видео урока %s: %s',
+                lesson.id, (result.stderr or b'').decode(errors='ignore')[-1000:],
+            )
+            return False
+
+        duration = probe_duration_seconds(tmp_out)
+        base_name = os.path.splitext(os.path.basename(old_name))[0]
+        new_filename = f'{base_name}_trim.mp4'
+
+        with open(tmp_out, 'rb') as fh:
+            lesson.video_file.save(new_filename, File(fh), save=False)
+
+        update_fields = ['video_file']
+        if duration:
+            lesson.duration_seconds = duration
+            update_fields.append('duration_seconds')
+
+        # Старое превью могло быть кадром из обрезанной части — перегенерируем.
+        if lesson.video_poster:
+            lesson.video_poster.delete(save=False)
+        poster_field = _extract_poster(tmp_out, base_name, duration)
+        if poster_field:
+            lesson.video_poster.save(poster_field[0], poster_field[1], save=False)
+            update_fields.append('video_poster')
+        else:
+            lesson.video_poster = None
+            update_fields.append('video_poster')
+
+        lesson.save(update_fields=update_fields)
+
+        if old_path and os.path.exists(old_path) and old_path != lesson.video_file.path:
+            try:
+                os.remove(old_path)
+            except OSError:
+                logger.warning('Не удалось удалить исходный видеофайл %s', old_path, exc_info=True)
+        return True
+    except subprocess.TimeoutExpired:
+        logger.warning('ffmpeg превысил таймаут при обрезке видео урока %s', lesson.id)
+        return False
+    finally:
+        if os.path.exists(tmp_out):
+            os.remove(tmp_out)

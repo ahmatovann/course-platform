@@ -4,6 +4,7 @@ import Sidebar from '../../components/common/Sidebar.vue'
 import { useAdminStore } from '../../store/admin'
 import { useUiStore } from '../../store/ui'
 import { detectKind, iconForKind, labelForKind } from '../../utils/fileKind'
+import VideoTrimModal from '../../components/common/VideoTrimModal.vue'
 
 import { adminLinks as links } from '../../nav'
 
@@ -12,7 +13,7 @@ const ui = useUiStore()
 const search = ref('')
 let debounceTimer = null
 const showLessonModal = ref(false)
-const lessonForm = reactive({ id: null, moduleId: null, title: '', description: '', video_url: '', duration_seconds: 0, materials: [] })
+const lessonForm = reactive({ id: null, moduleId: null, title: '', description: '', video_url: '', video_file: '', duration_seconds: 0, materials: [] })
 const videoFile = ref(null)
 const materialForm = reactive({ name: '', file: null })
 
@@ -55,6 +56,7 @@ function openAddLesson(moduleId) {
   lessonForm.title = ''
   lessonForm.description = ''
   lessonForm.video_url = ''
+  lessonForm.video_file = ''
   lessonForm.duration_seconds = 0
   lessonForm.materials = []
   videoFile.value = null
@@ -68,6 +70,7 @@ function openEditLesson(moduleId, lesson) {
   lessonForm.title = lesson.title
   lessonForm.description = lesson.description || ''
   lessonForm.video_url = lesson.video_url
+  lessonForm.video_file = lesson.video_file || ''
   lessonForm.duration_seconds = lesson.duration_seconds
   lessonForm.materials = lesson.materials || []
   videoFile.value = null
@@ -114,11 +117,27 @@ async function saveLesson() {
     if (!lessonId) return
   }
   if (videoFile.value) {
-    await admin.uploadLessonVideo(lessonId, videoFile.value)
+    const updated = await admin.uploadLessonVideo(lessonId, videoFile.value)
+    lessonForm.video_file = updated.video_file || ''
+    lessonForm.duration_seconds = updated.duration_seconds
     videoFile.value = null
     ui.showToast('Видео загружено', 'success')
   }
   refreshLessonMaterials(lessonId)
+}
+
+// ===== Обрезка видео =====
+const trimTarget = ref(null)
+
+function openTrim() {
+  trimTarget.value = { lessonId: lessonForm.id, videoUrl: lessonForm.video_file, duration: lessonForm.duration_seconds }
+}
+
+async function onTrimmed(updated) {
+  trimTarget.value = null
+  lessonForm.video_file = updated.video_file || ''
+  lessonForm.duration_seconds = updated.duration_seconds
+  await admin.fetchAdminCourses()
 }
 
 function refreshLessonMaterials(lessonId) {
@@ -285,6 +304,7 @@ async function removeModule(m) {
           <input type="file" accept="video/*" @change="onVideoPicked" :disabled="!lessonForm.title.trim()">
           <div class="hint" v-if="!lessonForm.title.trim()">Сначала введите название урока выше.</div>
           <div class="hint" v-else-if="lessonForm.duration_seconds">Длительность определена автоматически: {{ Math.round(lessonForm.duration_seconds / 60) }} мин.</div>
+          <button v-if="lessonForm.video_file" type="button" class="dl-btn" style="margin-top:8px;" @click="openTrim">✂ Обрезать загруженное видео</button>
         </div>
 
         <!-- Файлы можно добавлять сразу, ещё до нажатия «Сохранить» — урок
@@ -337,5 +357,7 @@ async function removeModule(m) {
         </div>
       </div>
     </div>
+
+    <VideoTrimModal :video="trimTarget" @trimmed="onTrimmed" @cancel="trimTarget = null" />
   </div>
 </template>
