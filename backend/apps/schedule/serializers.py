@@ -17,10 +17,10 @@ class ScheduleEventSerializer(serializers.ModelSerializer):
 
     def get_status(self, obj):
         """Только для отображения в админке: запланирована / опубликована / скрыта."""
-        today = timezone.localdate()
-        if obj.publish_at > today:
+        now = timezone.now()
+        if obj.publish_at > now:
             return 'scheduled'
-        if obj.hide_at and obj.hide_at <= today:
+        if obj.hide_at and obj.hide_at <= now:
             return 'hidden'
         return 'published'
 
@@ -30,7 +30,7 @@ class ScheduleEventWriteSerializer(serializers.ModelSerializer):
     # дополняем "https://", а не отклоняем как невалидный URL. Так надёжнее
     # для администратора, который может не знать про обязательный http(s)://.
     link_url = serializers.CharField(required=False, allow_blank=True, default='')
-    hide_at = serializers.DateField(required=False, allow_null=True)
+    hide_at = serializers.DateTimeField(required=False, allow_null=True)
 
     class Meta:
         model = ScheduleEvent

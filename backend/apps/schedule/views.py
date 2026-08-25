@@ -38,8 +38,8 @@ class ScheduleListView(generics.ListAPIView):
                 qs = qs.filter(course_id=course_param)
             return qs.all()
 
-        today = timezone.localdate()
-        qs = qs.filter(publish_at__lte=today).filter(Q(hide_at__isnull=True) | Q(hide_at__gt=today))
+        now = timezone.now()
+        qs = qs.filter(publish_at__lte=now).filter(Q(hide_at__isnull=True) | Q(hide_at__gt=now))
         course_ids = Course.objects.filter(enrollments__user=user).values_list('id', flat=True)
         return qs.filter(Q(course__isnull=True) | Q(course_id__in=course_ids))
 
@@ -55,10 +55,10 @@ class ScheduleCreateView(APIView):
         # «Дата рассылки» здесь управляет только видимостью (публикацией) —
         # никакой реальной отправки email/push нет. Уведомление в
         # колокольчик отправляем сразу только если новость уже опубликована
-        # (дата рассылки — сегодня или раньше); для новости, запланированной
+        # (момент рассылки уже наступил); для новости, запланированной
         # на будущее, уведомление не шлётся — она просто станет видна сама,
-        # когда наступит указанная дата.
-        if event.publish_at <= timezone.localdate():
+        # когда наступит указанный момент.
+        if event.publish_at <= timezone.now():
             User = request.user.__class__
             if event.course_id:
                 recipients = User.objects.filter(enrollments__course_id=event.course_id).distinct()
