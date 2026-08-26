@@ -2,9 +2,13 @@
 import { onMounted, ref } from 'vue'
 import Sidebar from '../../components/common/Sidebar.vue'
 import { useNewsStore } from '../../store/news'
+import { useUiStore } from '../../store/ui'
 import { learnerLinks as links } from '../../nav'
+import newsEmptyLight from '../../assets/news-empty.gif'
+import newsEmptyDark from '../../assets/news-empty-dark.gif'
 
 const store = useNewsStore()
+const ui = useUiStore()
 const openItem = ref(null)
 
 onMounted(async () => {
@@ -41,7 +45,10 @@ function formatDate(iso) {
             </div>
           </div>
         </div>
-        <p v-if="store.items.length === 0" style="color:var(--text-dim); margin-top:12px;">Новостей пока нет.</p>
+        <div v-if="store.items.length === 0" class="news-empty-state">
+          <img :src="ui.theme === 'dark' ? newsEmptyDark : newsEmptyLight" alt="" class="news-empty-img">
+          <p>Новостей пока нет</p>
+        </div>
       </div>
     </main>
 
