@@ -11,7 +11,7 @@ from .serializers import (
     CourseListSerializer, CourseDetailSerializer, ModuleDetailSerializer,
     LessonDetailSerializer, TestPublicSerializer, TestSubmitSerializer,
     TestAttemptSerializer, CommentSerializer,
-    MaterialSerializer, FavoriteMaterialSerializer,
+    MaterialSerializer, FavoriteMaterialSerializer, FavoriteLessonSerializer,
 )
 from .services import course_progress_percent
 
@@ -92,6 +92,33 @@ class FavoriteMaterialsListView(APIView):
     def get(self, request):
         materials = Material.objects.filter(favorited_by=request.user).select_related('lesson__module__course')
         return Response(FavoriteMaterialSerializer(materials, many=True, context={'request': request}).data)
+
+
+class LessonFavoriteView(APIView):
+    """Добавить/убрать урок (видео + аудио-версия) из избранного — у
+    каждого ученика своё, как и с файлами материалов."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        lesson = get_object_or_404(Lesson, pk=pk)
+        if request.user.role != 'admin' and not _is_enrolled(request.user, lesson.module.course):
+            return Response({'detail': 'Нет доступа к этому уроку'}, status=status.HTTP_403_FORBIDDEN)
+        lesson.favorited_by.add(request.user)
+        return Response(LessonDetailSerializer(lesson, context={'request': request}).data)
+
+    def delete(self, request, pk):
+        lesson = get_object_or_404(Lesson, pk=pk)
+        lesson.favorited_by.remove(request.user)
+        return Response(LessonDetailSerializer(lesson, context={'request': request}).data)
+
+
+class FavoriteLessonsListView(APIView):
+    """Все уроки (видео), которые ученик отметил «в избранное»."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        lessons = Lesson.objects.filter(favorited_by=request.user).select_related('module__course')
+        return Response(FavoriteLessonSerializer(lessons, many=True, context={'request': request}).data)
 
 
 class MarkLessonWatchedView(APIView):

@@ -128,7 +128,13 @@ function formatTime(iso) {
       <div class="view active">
         <div class="main-header">
           <div><h1>{{ lesson.title }}</h1><p>Урок {{ lesson.order }}</p></div>
-          <button class="dl-btn" @click="router.push({ name: 'module', params: { id: lesson.module } })">← К списку уроков</button>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <button
+              type="button" class="material-fav-btn" :class="{ active: lesson.is_favorite }" style="font-size:22px;"
+              @click="store.toggleLessonFavorite(lesson)" :title="lesson.is_favorite ? 'Убрать урок из избранного' : 'Добавить урок в избранное'"
+            >{{ lesson.is_favorite ? '★' : '☆' }}</button>
+            <button class="dl-btn" @click="router.push({ name: 'module', params: { id: lesson.module } })">← К списку уроков</button>
+          </div>
         </div>
         <div class="lesson-layout">
           <div>

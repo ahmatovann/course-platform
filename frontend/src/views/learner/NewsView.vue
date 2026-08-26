@@ -33,6 +33,10 @@ function formatDate(iso) {
             </div>
             <p class="news-excerpt news-excerpt-clamp" v-if="n.description">{{ n.description }}</p>
             <div class="news-item-bottom">
+              <button
+                type="button" class="material-fav-btn" :class="{ active: n.is_favorite }"
+                @click.stop="store.toggleFavorite(n)" :title="n.is_favorite ? 'Убрать из избранного' : 'В избранное'"
+              >{{ n.is_favorite ? '★' : '☆' }}</button>
               <button class="news-more">Подробнее</button>
             </div>
           </div>

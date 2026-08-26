@@ -55,6 +55,11 @@ class Lesson(models.Model):
     # Длительность определяется автоматически на фронтенде из самого видео-файла
     # при выборе (через HTML5 video-элемент) — вручную администратор её не вводит.
     duration_seconds = models.PositiveIntegerField(default=0)
+    # Ученик может добавить сам урок (видео + его аудио-версию) в избранное —
+    # так же, как файлы материалов, чтобы быстро найти его позже.
+    favorited_by = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, blank=True, related_name='favorite_lessons',
+    )
 
     class Meta:
         ordering = ['order', 'id']

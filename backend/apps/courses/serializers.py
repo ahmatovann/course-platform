@@ -32,11 +32,30 @@ class LessonListSerializer(serializers.ModelSerializer):
 
 class LessonDetailSerializer(LessonListSerializer):
     materials = MaterialSerializer(many=True, read_only=True)
+    is_favorite = serializers.SerializerMethodField()
 
     class Meta(LessonListSerializer.Meta):
         fields = LessonListSerializer.Meta.fields + [
             'description', 'video_url', 'video_file', 'video_poster', 'video_audio_file',
-            'materials', 'module',
+            'materials', 'module', 'is_favorite',
+        ]
+
+    def get_is_favorite(self, obj):
+        request = self.context.get('request')
+        return bool(request and request.user.is_authenticated and obj.favorited_by.filter(pk=request.user.id).exists())
+
+
+class FavoriteLessonSerializer(serializers.ModelSerializer):
+    """Урок (видео + его аудио-версия), отмеченный учеником «в избранное» —
+    с указанием курса/модуля, где он находится."""
+    module_title = serializers.CharField(source='module.title', read_only=True)
+    course_title = serializers.CharField(source='module.course.title', read_only=True)
+
+    class Meta:
+        model = Lesson
+        fields = [
+            'id', 'title', 'video_file', 'video_poster', 'video_audio_file',
+            'duration_seconds', 'module_title', 'course_title',
         ]
 
 

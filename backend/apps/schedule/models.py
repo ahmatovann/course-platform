@@ -29,6 +29,11 @@ class ScheduleEvent(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='+'
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    # Ученик может отметить новость «в избранное», чтобы быстро найти её
+    # позже — так же, как видео уроков и файлы материалов.
+    favorited_by = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, blank=True, related_name='favorite_news',
+    )
 
     class Meta:
         ordering = ['-publish_at', '-id']

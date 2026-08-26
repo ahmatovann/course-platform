@@ -291,6 +291,19 @@ def trim_lesson_video(lesson, start, end):
             lesson.video_poster = None
             update_fields.append('video_poster')
 
+        # Старая аудио-версия соответствовала полному ролику — после
+        # обрезки она рассинхронизирована с новой длительностью, поэтому
+        # тоже перегенерируется из обрезанного видео.
+        if lesson.video_audio_file:
+            lesson.video_audio_file.delete(save=False)
+        audio_field = _extract_audio(tmp_out, base_name)
+        if audio_field:
+            lesson.video_audio_file.save(audio_field[0], audio_field[1], save=False)
+            update_fields.append('video_audio_file')
+        else:
+            lesson.video_audio_file = None
+            update_fields.append('video_audio_file')
+
         lesson.save(update_fields=update_fields)
 
         if old_path and os.path.exists(old_path) and old_path != lesson.video_file.path:

@@ -11,6 +11,7 @@ export const useCoursesStore = defineStore('courses', {
     currentTest: null,
     lessonComments: [],
     favoriteMaterials: [],
+    favoriteLessons: [],
   }),
   actions: {
     async fetchCourses() {
@@ -73,6 +74,21 @@ export const useCoursesStore = defineStore('courses', {
     async fetchFavoriteMaterials() {
       const { data } = await client.get('/courses/materials/favorites/')
       this.favoriteMaterials = data
+      return data
+    },
+    // Урок (видео + его аудио-версия) «в избранное» — тем же принципом, что и файлы.
+    async toggleLessonFavorite(lesson) {
+      const { data } = lesson.is_favorite
+        ? await client.delete(`/courses/lessons/${lesson.id}/favorite/`)
+        : await client.post(`/courses/lessons/${lesson.id}/favorite/`)
+      if (this.currentLesson && this.currentLesson.id === lesson.id) {
+        this.currentLesson.is_favorite = data.is_favorite
+      }
+      return data
+    },
+    async fetchFavoriteLessons() {
+      const { data } = await client.get('/courses/lessons/favorites/')
+      this.favoriteLessons = data
       return data
     },
     async downloadCertificate(slug) {

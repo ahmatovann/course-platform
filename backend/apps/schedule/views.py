@@ -16,6 +16,17 @@ from .models import ScheduleEvent
 from .serializers import ScheduleEventSerializer, ScheduleEventWriteSerializer
 
 
+def _news_visible_to_student(user, event):
+    now = timezone.now()
+    if event.publish_at > now:
+        return False
+    if event.hide_at and event.hide_at <= now:
+        return False
+    if event.course_id is None:
+        return True
+    return Course.objects.filter(id=event.course_id, enrollments__user=user).exists()
+
+
 class ScheduleListView(generics.ListAPIView):
     """Ученику показываем только уже опубликованные новости (дата рассылки
     наступила и, если задана, дата скрытия ещё не наступила) его курсов и
@@ -69,7 +80,7 @@ class ScheduleCreateView(APIView):
             notify_many(list(recipients), f'Новая новость: «{event.title}»', url='/news')
 
         log_action(request, 'created', 'новость', event.title)
-        return Response(ScheduleEventSerializer(event).data, status=status.HTTP_201_CREATED)
+        return Response(ScheduleEventSerializer(event, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
 class ScheduleUpdateDeleteView(APIView):
@@ -81,7 +92,7 @@ class ScheduleUpdateDeleteView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         log_action(request, 'updated', 'новость', event.title)
-        return Response(ScheduleEventSerializer(event).data)
+        return Response(ScheduleEventSerializer(event, context={'request': request}).data)
 
     def delete(self, request, pk):
         event = get_object_or_404(ScheduleEvent, pk=pk)
@@ -89,3 +100,29 @@ class ScheduleUpdateDeleteView(APIView):
         event.delete()
         log_action(request, 'deleted', 'новость', title)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class NewsFavoriteView(APIView):
+    """Добавить/убрать новость из избранного — у каждого ученика своё."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        event = get_object_or_404(ScheduleEvent, pk=pk)
+        if request.user.role != 'admin' and not _news_visible_to_student(request.user, event):
+            return Response({'detail': 'Нет доступа к этой новости'}, status=status.HTTP_403_FORBIDDEN)
+        event.favorited_by.add(request.user)
+        return Response(ScheduleEventSerializer(event, context={'request': request}).data)
+
+    def delete(self, request, pk):
+        event = get_object_or_404(ScheduleEvent, pk=pk)
+        event.favorited_by.remove(request.user)
+        return Response(ScheduleEventSerializer(event, context={'request': request}).data)
+
+
+class FavoriteNewsListView(APIView):
+    """Все новости, которые ученик отметил «в избранное»."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        events = ScheduleEvent.objects.filter(favorited_by=request.user).select_related('course')
+        return Response(ScheduleEventSerializer(events, many=True, context={'request': request}).data)

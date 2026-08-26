@@ -7,13 +7,21 @@ from .models import ScheduleEvent
 class ScheduleEventSerializer(serializers.ModelSerializer):
     course_title = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
+    is_favorite = serializers.SerializerMethodField()
 
     class Meta:
         model = ScheduleEvent
-        fields = ['id', 'title', 'description', 'link_url', 'publish_at', 'hide_at', 'course', 'course_title', 'status']
+        fields = [
+            'id', 'title', 'description', 'link_url', 'publish_at', 'hide_at',
+            'course', 'course_title', 'status', 'is_favorite',
+        ]
 
     def get_course_title(self, obj):
         return obj.course.title if obj.course_id else None
+
+    def get_is_favorite(self, obj):
+        request = self.context.get('request')
+        return bool(request and getattr(request.user, 'is_authenticated', False) and obj.favorited_by.filter(pk=request.user.id).exists())
 
     def get_status(self, obj):
         """Только для отображения в админке: запланирована / опубликована / скрыта."""

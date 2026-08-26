@@ -7,26 +7,42 @@ import AvatarCropper from '../../components/common/AvatarCropper.vue'
 import { useAuthStore } from '../../store/auth'
 import { useUiStore } from '../../store/ui'
 import { useCoursesStore } from '../../store/courses'
+import { useNewsStore } from '../../store/news'
 import { iconForKind } from '../../utils/fileKind'
 import { learnerLinks as links } from '../../nav'
 
 const auth = useAuthStore()
 const ui = useUiStore()
 const coursesStore = useCoursesStore()
+const newsStore = useNewsStore()
 const router = useRouter()
 
 const loadingCourses = ref(true)
 onMounted(async () => {
   if (coursesStore.courses.length === 0) await coursesStore.fetchCourses()
   loadingCourses.value = false
-  await coursesStore.fetchFavoriteMaterials()
+  await Promise.all([
+    coursesStore.fetchFavoriteMaterials(),
+    coursesStore.fetchFavoriteLessons(),
+    newsStore.fetchFavorites(),
+  ])
 })
 
-// Всё в этом списке уже избранное по определению (пришло из /materials/favorites/),
+// Всё в этих списках уже избранное по определению (пришло из /favorites/),
 // поэтому убираем напрямую — не через toggle, который ждёт поле is_favorite.
 async function unfavorite(material) {
   await coursesStore.toggleMaterialFavorite({ ...material, is_favorite: true })
   coursesStore.favoriteMaterials = coursesStore.favoriteMaterials.filter((m) => m.id !== material.id)
+}
+
+async function unfavoriteLesson(lesson) {
+  await coursesStore.toggleLessonFavorite({ ...lesson, is_favorite: true })
+  coursesStore.favoriteLessons = coursesStore.favoriteLessons.filter((l) => l.id !== lesson.id)
+}
+
+async function unfavoriteNews(item) {
+  await newsStore.toggleFavorite({ ...item, is_favorite: true })
+  newsStore.favorites = newsStore.favorites.filter((n) => n.id !== item.id)
 }
 
 function formatDate(iso) {
@@ -282,16 +298,48 @@ function courseStatus(c) {
 
           <div class="mini-card">
             <h4>Избранное</h4>
-            <p style="color:var(--text-dim); font-size:12.5px; margin:-4px 0 12px;">Файлы уроков, которые вы отметили звёздочкой — для быстрого возврата</p>
-            <div style="display:flex; flex-direction:column; gap:8px;">
-              <div v-for="m in coursesStore.favoriteMaterials" :key="m.id" class="material-row" style="margin-bottom:0;">
-                <div class="type-icon">{{ iconForKind(m.kind) }}</div>
-                <div class="name">{{ m.name }}<span class="kind-label">{{ m.course_title }} · {{ m.module_title }} · {{ m.lesson_title }}</span></div>
-                <button type="button" class="material-fav-btn active" @click="unfavorite(m)" title="Убрать из избранного">★</button>
-                <a class="dl" :href="m.file" target="_blank">Открыть</a>
+            <p style="color:var(--text-dim); font-size:12.5px; margin:-4px 0 12px;">Видео, файлы и новости, которые вы отметили звёздочкой — для быстрого возврата</p>
+
+            <template v-if="coursesStore.favoriteLessons.length">
+              <div style="font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px;">Видео</div>
+              <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
+                <div v-for="l in coursesStore.favoriteLessons" :key="'lesson-' + l.id" class="material-row" style="margin-bottom:0;">
+                  <div class="type-icon">▶</div>
+                  <div class="name">{{ l.title }}<span class="kind-label">{{ l.course_title }} · {{ l.module_title }}</span></div>
+                  <button type="button" class="material-fav-btn active" @click="unfavoriteLesson(l)" title="Убрать из избранного">★</button>
+                  <a class="dl" href="#" @click.prevent="router.push(`/lessons/${l.id}`)">Открыть</a>
+                </div>
               </div>
-              <p v-if="coursesStore.favoriteMaterials.length === 0" style="color:var(--text-dim); font-size:13px;">Пока ничего не добавлено — нажмите ☆ рядом с файлом урока.</p>
-            </div>
+            </template>
+
+            <template v-if="coursesStore.favoriteMaterials.length">
+              <div style="font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px;">Файлы</div>
+              <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
+                <div v-for="m in coursesStore.favoriteMaterials" :key="'mat-' + m.id" class="material-row" style="margin-bottom:0;">
+                  <div class="type-icon">{{ iconForKind(m.kind) }}</div>
+                  <div class="name">{{ m.name }}<span class="kind-label">{{ m.course_title }} · {{ m.module_title }} · {{ m.lesson_title }}</span></div>
+                  <button type="button" class="material-fav-btn active" @click="unfavorite(m)" title="Убрать из избранного">★</button>
+                  <a class="dl" :href="m.file" target="_blank">Открыть</a>
+                </div>
+              </div>
+            </template>
+
+            <template v-if="newsStore.favorites.length">
+              <div style="font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px;">Новости</div>
+              <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
+                <div v-for="n in newsStore.favorites" :key="'news-' + n.id" class="material-row" style="margin-bottom:0;">
+                  <div class="type-icon">📰</div>
+                  <div class="name">{{ n.title }}<span class="kind-label">{{ n.course_title || 'Для всех' }}</span></div>
+                  <button type="button" class="material-fav-btn active" @click="unfavoriteNews(n)" title="Убрать из избранного">★</button>
+                  <a class="dl" href="#" @click.prevent="router.push('/news')">Открыть</a>
+                </div>
+              </div>
+            </template>
+
+            <p
+              v-if="!coursesStore.favoriteLessons.length && !coursesStore.favoriteMaterials.length && !newsStore.favorites.length"
+              style="color:var(--text-dim); font-size:13px;"
+            >Пока ничего не добавлено — нажмите ☆ рядом с видео урока, файлом или новостью.</p>
           </div>
         </div>
       </div>

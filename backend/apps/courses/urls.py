@@ -5,14 +5,17 @@ from .views import (
     MarkLessonWatchedView, TestDetailView, TestSubmitView, EnrollView,
     CertificateDownloadView, LessonCommentsView,
     MaterialFavoriteView, FavoriteMaterialsListView,
+    LessonFavoriteView, FavoriteLessonsListView,
 )
 
 urlpatterns = [
     path('', CourseListView.as_view(), name='course-list'),
     path('modules/<int:pk>/', ModuleDetailView.as_view(), name='module-detail'),
+    path('lessons/favorites/', FavoriteLessonsListView.as_view(), name='lessons-favorites'),
     path('lessons/<int:pk>/', LessonDetailView.as_view(), name='lesson-detail'),
     path('lessons/<int:pk>/watch/', MarkLessonWatchedView.as_view(), name='lesson-watch'),
     path('lessons/<int:pk>/comments/', LessonCommentsView.as_view(), name='lesson-comments'),
+    path('lessons/<int:pk>/favorite/', LessonFavoriteView.as_view(), name='lesson-favorite'),
     path('materials/favorites/', FavoriteMaterialsListView.as_view(), name='materials-favorites'),
     path('materials/<int:pk>/favorite/', MaterialFavoriteView.as_view(), name='material-favorite'),
     path('tests/<int:pk>/', TestDetailView.as_view(), name='test-detail'),
