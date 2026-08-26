@@ -110,6 +110,15 @@ function formatDuration(seconds) {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
+// ===== История действий администратора =====
+onMounted(() => admin.fetchAuditLog())
+
+const actionLabels = { created: 'создал(а)', updated: 'изменил(а)', deleted: 'удалил(а)', toggled: 'переключил(а)' }
+
+function formatLogDate(iso) {
+  return new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
 // ===== Переименование =====
 const renameItem = ref(null)
 const renameValue = ref('')
@@ -247,6 +256,22 @@ async function removeItem(item) {
             </tbody>
           </table>
           <p v-if="admin.media.length === 0" style="color:var(--text-dim); margin-top:12px;">Пока ничего не загружено — видео и файлы уроков появятся здесь автоматически.</p>
+        </div>
+
+        <div class="mini-card" style="margin-top:20px;">
+          <h4>История</h4>
+          <p style="color:var(--text-dim); font-size:12.5px; margin:-4px 0 14px;">Действия администраторов — кто и что сделал, сначала новые</p>
+          <table>
+            <thead><tr><th>Когда</th><th>Кто</th><th>Действие</th></tr></thead>
+            <tbody>
+              <tr v-for="entry in admin.auditLog" :key="entry.id">
+                <td style="white-space:nowrap; color:var(--text-dim); font-size:12.5px;">{{ formatLogDate(entry.created_at) }}</td>
+                <td>{{ entry.actor_name }}</td>
+                <td>{{ actionLabels[entry.action] || entry.action }} {{ entry.target_type }} «{{ entry.target_repr }}»</td>
+              </tr>
+            </tbody>
+          </table>
+          <p v-if="admin.auditLog.length === 0" style="color:var(--text-dim); margin-top:12px;">Пока ничего не записано.</p>
         </div>
       </div>
     </main>

@@ -10,6 +10,7 @@ from .views import (
     AdminCourseCreateView, AdminModuleCreateView,
     StudentProgressExportView, StudentsExportView,
     AdminMediaListView,
+    AuditLogListView,
 )
 
 urlpatterns = [
@@ -38,4 +39,6 @@ urlpatterns = [
     path('tests/create/', AdminTestCreateView.as_view(), name='admin-tests-create'),
     path('tests/<int:pk>/', AdminTestDetailView.as_view(), name='admin-tests-detail'),
     path('tests/<int:pk>/update/', AdminTestUpdateDeleteView.as_view(), name='admin-tests-update-delete'),
+
+    path('audit-log/', AuditLogListView.as_view(), name='admin-audit-log'),
 ]

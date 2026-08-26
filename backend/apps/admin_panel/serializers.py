@@ -2,8 +2,22 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from apps.courses.models import Course
+from .models import AuditLogEntry
 
 User = get_user_model()
+
+
+class AuditLogEntrySerializer(serializers.ModelSerializer):
+    actor_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AuditLogEntry
+        fields = ['id', 'actor_name', 'action', 'target_type', 'target_repr', 'created_at']
+
+    def get_actor_name(self, obj):
+        if not obj.actor:
+            return 'Удалённый пользователь'
+        return obj.actor.get_full_name() or obj.actor.email
 
 
 class StudentSerializer(serializers.ModelSerializer):

@@ -9,7 +9,8 @@ from apps.accounts.permissions import IsAdmin
 from apps.accounts.utils import generate_password, send_welcome_email
 from apps.courses.models import Course, Enrollment
 
-from .serializers import StudentSerializer, CreateStudentSerializer
+from .models import log_action, AuditLogEntry
+from .serializers import StudentSerializer, CreateStudentSerializer, AuditLogEntrySerializer
 
 User = get_user_model()
 
@@ -72,6 +73,7 @@ class CreateStudentView(APIView):
             Enrollment.objects.get_or_create(user=user, course=course)
 
         send_welcome_email(user, password)
+        log_action(request, 'created', 'ученик', f'{first_name} {last_name}'.strip() or user.email)
 
         return Response({
             'student': StudentSerializer(user).data,
@@ -91,6 +93,10 @@ class ToggleStudentStatusView(APIView):
         user.is_active_student = not user.is_active_student
         user.is_active = user.is_active_student
         user.save(update_fields=['is_active_student', 'is_active'])
+        log_action(
+            request, 'toggled', 'ученик',
+            f'{user.first_name} {user.last_name}'.strip() + (' → активен' if user.is_active_student else ' → не активен'),
+        )
         return Response(StudentSerializer(user).data)
 
 
@@ -104,12 +110,15 @@ class StudentEnrollView(APIView):
         student = get_object_or_404(User, pk=pk, role=User.Role.STUDENT)
         course = get_object_or_404(Course, pk=request.data.get('course_id'))
         Enrollment.objects.get_or_create(user=student, course=course)
+        log_action(request, 'created', 'запись на курс', f'{student.first_name} {student.last_name} → «{course.title}»')
         return Response(StudentSerializer(student).data, status=status.HTTP_201_CREATED)
 
     def delete(self, request, pk):
         student = get_object_or_404(User, pk=pk, role=User.Role.STUDENT)
         course_id = request.data.get('course_id')
+        course = Course.objects.filter(pk=course_id).first()
         Enrollment.objects.filter(user=student, course_id=course_id).delete()
+        log_action(request, 'deleted', 'запись на курс', f'{student.first_name} {student.last_name} ← «{course.title if course else course_id}»')
         return Response(StudentSerializer(student).data)
 
 
@@ -147,11 +156,14 @@ class AdminModuleUpdateView(APIView):
         serializer = AdminModuleUpdateSerializer(module, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        log_action(request, 'updated', 'модуль', module.title)
         return Response(AdminModuleSerializer(module).data)
 
     def delete(self, request, pk):
         module = get_object_or_404(Module, pk=pk)
+        title = module.title
         module.delete()
+        log_action(request, 'deleted', 'модуль', title)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -175,6 +187,7 @@ class AdminLessonCreateView(APIView):
         students = User.objects.filter(enrollments__course=module.course).distinct()
         notify_many(list(students), f'Новый урок «{lesson.title}» в курсе «{module.course.title}»', url=f'/lessons/{lesson.id}')
 
+        log_action(request, 'created', 'урок', f'{lesson.title} ({module.course.title})')
         return Response(AdminLessonSerializer(lesson).data, status=status.HTTP_201_CREATED)
 
 
@@ -192,11 +205,14 @@ class AdminLessonUpdateDeleteView(APIView):
         if 'video_file' in request.data:
             from apps.courses.media_utils import transcode_lesson_video
             transcode_lesson_video(lesson)
+        log_action(request, 'updated', 'урок', lesson.title)
         return Response(AdminLessonSerializer(lesson).data)
 
     def delete(self, request, pk):
         lesson = get_object_or_404(Lesson, pk=pk)
+        title = lesson.title
         lesson.delete()
+        log_action(request, 'deleted', 'урок', title)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -233,6 +249,7 @@ class AdminTestCreateView(APIView):
         students = User.objects.filter(enrollments__course=test.module.course).distinct()
         notify_many(list(students), f'Новый тест «{test.title}» в курсе «{test.module.course.title}»', url=f'/tests/{test.id}')
 
+        log_action(request, 'created', 'тест', test.title)
         return Response(AdminTestSerializer(test).data, status=status.HTTP_201_CREATED)
 
 
@@ -244,11 +261,14 @@ class AdminTestUpdateDeleteView(APIView):
         serializer = AdminTestWriteSerializer(test, data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        log_action(request, 'updated', 'тест', test.title)
         return Response(AdminTestSerializer(test).data)
 
     def delete(self, request, pk):
         test = get_object_or_404(Test, pk=pk)
+        title = test.title
         test.delete()
+        log_action(request, 'deleted', 'тест', title)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -491,6 +511,7 @@ class AdminCourseCreateView(APIView):
         serializer = AdminCourseWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         course = serializer.save()
+        log_action(request, 'created', 'тренинг', course.title)
         return Response(AdminCourseSerializer(course).data, status=status.HTTP_201_CREATED)
 
 
@@ -506,7 +527,18 @@ class AdminModuleCreateView(APIView):
             course=course, order=count + 1,
             require_test_to_unlock_next=True, pass_threshold_percent=80, allow_downloads=True,
         )
+        log_action(request, 'created', 'модуль', f'{module.title} ({course.title})')
         return Response(AdminModuleSerializer(module).data, status=status.HTTP_201_CREATED)
+
+
+# ===== История действий администратора =====
+
+class AuditLogListView(drf_generics.ListAPIView):
+    """Журнал действий: кто, что и когда сделал — отсортировано по времени
+    (сначала новые). Раздел «История» в Настройках."""
+    serializer_class = AuditLogEntrySerializer
+    permission_classes = [IsAdmin]
+    queryset = AuditLogEntry.objects.select_related('actor').all()
 
 
 # ===== Библиотека материалов (все загруженные видео уроков + материалы) =====

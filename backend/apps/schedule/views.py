@@ -10,6 +10,8 @@ from apps.accounts.permissions import IsAdmin
 from apps.courses.models import Course
 from apps.notifications.models import notify_many
 
+from apps.admin_panel.models import log_action
+
 from .models import ScheduleEvent
 from .serializers import ScheduleEventSerializer, ScheduleEventWriteSerializer
 
@@ -66,6 +68,7 @@ class ScheduleCreateView(APIView):
                 recipients = User.objects.filter(role='student')
             notify_many(list(recipients), f'Новая новость: «{event.title}»', url='/news')
 
+        log_action(request, 'created', 'новость', event.title)
         return Response(ScheduleEventSerializer(event).data, status=status.HTTP_201_CREATED)
 
 
@@ -77,9 +80,12 @@ class ScheduleUpdateDeleteView(APIView):
         serializer = ScheduleEventWriteSerializer(event, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        log_action(request, 'updated', 'новость', event.title)
         return Response(ScheduleEventSerializer(event).data)
 
     def delete(self, request, pk):
         event = get_object_or_404(ScheduleEvent, pk=pk)
+        title = event.title
         event.delete()
+        log_action(request, 'deleted', 'новость', title)
         return Response(status=status.HTTP_204_NO_CONTENT)
