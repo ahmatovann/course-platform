@@ -12,6 +12,10 @@ export const useChatsStore = defineStore('chats', {
       this.threads = data
       return data
     },
+    async getDirectThread(studentId) {
+      const { data } = await client.get(`/chats/direct/${studentId}/`)
+      return data
+    },
     async fetchMessages(threadId) {
       const { data } = await client.get(`/chats/${threadId}/messages/`)
       this.messages = data

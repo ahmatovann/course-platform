@@ -1,15 +1,19 @@
 <script setup>
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import Sidebar from '../../components/common/Sidebar.vue'
 import { useAdminStore } from '../../store/admin'
 import { useCoursesStore } from '../../store/courses'
+import { useChatsStore } from '../../store/chats'
 import { useUiStore } from '../../store/ui'
 
 import { adminLinks as links } from '../../nav'
 
 const admin = useAdminStore()
 const courses = useCoursesStore()
+const chats = useChatsStore()
 const ui = useUiStore()
+const router = useRouter()
 const showModal = ref(false)
 const result = ref(null)
 const form = reactive({ name: '', email: '', phone: '', course_id: null })
@@ -90,6 +94,60 @@ async function toggleCourse(c) {
     ui.showToast('Не удалось изменить доступ', 'error')
   }
 }
+
+// ===== Карточка ученика (прогресс + материалы + чат) =====
+const cardStudentId = ref(null)
+const cardStudent = computed(() => admin.students.find((s) => s.id === cardStudentId.value) || null)
+const cardProgress = ref(null)
+const cardProgressLoading = ref(false)
+const openingChat = ref(false)
+
+async function openCard(s) {
+  cardStudentId.value = s.id
+  cardProgress.value = null
+  cardProgressLoading.value = true
+  try {
+    const [progress] = await Promise.all([
+      admin.fetchStudentProgress(s.id),
+      admin.media.length === 0 ? admin.fetchMedia() : Promise.resolve(),
+    ])
+    cardProgress.value = progress
+  } finally {
+    cardProgressLoading.value = false
+  }
+}
+
+function closeCard() {
+  cardStudentId.value = null
+}
+
+// Материалы, доступные этому ученику — все файлы уроков курсов, на
+// которые он записан (то же самое, что видно в библиотеке «Материалы»,
+// просто отфильтровано под конкретного ученика).
+const cardMaterials = computed(() => {
+  if (!cardStudent.value) return []
+  const courseIds = new Set(cardStudent.value.course_ids || [])
+  return admin.media.filter((item) => courseIds.has(item.course_id))
+})
+
+async function goToChat(s) {
+  openingChat.value = true
+  try {
+    const thread = await chats.getDirectThread(s.id)
+    router.push({ path: '/admin/chats', query: { thread: thread.id } })
+  } catch (e) {
+    ui.showToast('Не удалось открыть чат', 'error')
+  } finally {
+    openingChat.value = false
+  }
+}
+
+function formatSize(bytes) {
+  if (!bytes && bytes !== 0) return '—'
+  if (bytes < 1024) return `${bytes} Б`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} КБ`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`
+}
 </script>
 
 <template>
@@ -115,19 +173,19 @@ async function toggleCourse(c) {
         <table>
           <thead><tr><th>Ученик</th><th>Email</th><th>Телефон</th><th>Статус</th><th>Курсы</th><th></th></tr></thead>
           <tbody>
-            <tr v-for="s in admin.students" :key="s.id">
-              <td>{{ s.first_name }} {{ s.last_name }}</td>
+            <tr v-for="s in admin.students" :key="s.id" style="cursor:pointer;" @click="openCard(s)">
+              <td style="color:var(--gold); text-decoration:underline;">{{ s.first_name }} {{ s.last_name }}</td>
               <td>{{ s.email }}</td>
               <td>{{ s.phone || '—' }}</td>
               <td>
                 <button
                   type="button" class="status-dot status-toggle" :class="s.is_active_student ? 'active' : 'inactive'"
-                  @click="toggle(s)" :title="s.is_active_student ? 'Нажмите, чтобы деактивировать' : 'Нажмите, чтобы активировать'"
+                  @click.stop="toggle(s)" :title="s.is_active_student ? 'Нажмите, чтобы деактивировать' : 'Нажмите, чтобы активировать'"
                 >{{ s.is_active_student ? 'Активен' : 'Не активен' }}</button>
               </td>
               <td>{{ s.course_titles.join(', ') || '—' }}</td>
               <td class="row-actions">
-                <button @click="openCoursesModal(s)" title="Изменить курсы">Курсы</button>
+                <button @click.stop="openCoursesModal(s)" title="Изменить курсы">Курсы</button>
               </td>
             </tr>
           </tbody>
@@ -178,6 +236,49 @@ async function toggleCourse(c) {
         </div>
         <div class="modal-footer">
           <button class="btn-primary" @click="coursesModalStudentId = null">Готово</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" :class="{ active: cardStudent }" @click="closeCard">
+      <div class="modal" style="max-width:640px" v-if="cardStudent" @click.stop>
+        <h3>{{ cardStudent.first_name }} {{ cardStudent.last_name }}</h3>
+        <p class="mod-sub">{{ cardStudent.email }} · {{ cardStudent.phone || 'без телефона' }}</p>
+        <div style="display:flex; gap:10px; align-items:center; margin:12px 0 20px;">
+          <button
+            type="button" class="status-dot status-toggle" :class="cardStudent.is_active_student ? 'active' : 'inactive'"
+            @click="toggle(cardStudent)"
+          >{{ cardStudent.is_active_student ? 'Активен' : 'Не активен' }}</button>
+          <button type="button" class="btn-primary" style="width:auto; padding:9px 16px;" :disabled="openingChat" @click="goToChat(cardStudent)">
+            💬 {{ openingChat ? 'Открываем...' : 'Написать в чат' }}
+          </button>
+        </div>
+
+        <h4>Прогресс</h4>
+        <div v-if="cardProgressLoading" style="color:var(--text-dim); font-size:13px; margin-bottom:16px;">Загрузка...</div>
+        <template v-else-if="cardProgress">
+          <p v-if="cardProgress.courses.length === 0" style="color:var(--text-dim); font-size:13px;">Не записан ни на один тренинг.</p>
+          <div v-for="c in cardProgress.courses" :key="c.course_id" class="chart-bar-row" style="margin-bottom:10px;">
+            <span class="chart-bar-label">{{ c.course_title }} — {{ c.modules_completed }}/{{ c.modules_total }} модулей ({{ c.completion_percent }}%)</span>
+            <div class="chart-bar-track"><div class="chart-bar-fill" :style="{ width: c.completion_percent + '%' }"></div></div>
+          </div>
+        </template>
+
+        <h4 style="margin-top:20px;">Материалы</h4>
+        <p style="color:var(--text-dim); font-size:12.5px; margin:-4px 0 10px;">Файлы курсов, на которые записан ученик</p>
+        <div style="display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto;">
+          <a
+            v-for="item in cardMaterials" :key="item.id" :href="item.url" target="_blank" rel="noopener"
+            style="display:flex; justify-content:space-between; gap:10px; padding:8px 10px; border-radius:8px; background:var(--navy-deep); color:var(--text-hi); text-decoration:none; font-size:13px;"
+          >
+            <span>{{ item.name }}</span>
+            <span style="color:var(--text-dim); flex-shrink:0;">{{ item.kind_label }} · {{ formatSize(item.size_bytes) }}</span>
+          </a>
+          <p v-if="cardMaterials.length === 0" style="color:var(--text-dim); font-size:12.5px;">Материалов пока нет.</p>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-ghost" @click="closeCard">Закрыть</button>
         </div>
       </div>
     </div>

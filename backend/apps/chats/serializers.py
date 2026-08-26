@@ -77,7 +77,9 @@ class ChatThreadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ChatThread
-        fields = ['id', 'kind', 'course', 'title', 'last_message']
+        # student — нужен только админу, чтобы из карточки ученика открыть
+        # именно его личный чат (у ученика поле всегда совпадает с ним самим).
+        fields = ['id', 'kind', 'course', 'student', 'title', 'last_message']
 
     def get_last_message(self, obj):
         msg = obj.messages.order_by('-created_at').first()

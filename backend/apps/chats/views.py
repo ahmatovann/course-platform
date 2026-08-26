@@ -1,3 +1,4 @@
+from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -6,11 +7,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.permissions import IsAdmin
 from apps.notifications.models import notify_many
 
 from .models import ChatThread, ChatMessage
 from .serializers import ChatThreadSerializer, ChatMessageSerializer
-from .services import threads_for_user, can_access_thread
+from .services import threads_for_user, can_access_thread, ensure_direct_thread
 
 
 class ChatThreadListView(APIView):
@@ -20,6 +22,20 @@ class ChatThreadListView(APIView):
     def get(self, request):
         threads = threads_for_user(request.user)
         return Response(ChatThreadSerializer(threads, many=True, context={'request': request}).data)
+
+
+class AdminDirectThreadView(APIView):
+    """Личный чат администратора с конкретным учеником — используется из
+    карточки ученика («Написать в чат»). Если чата ещё не было (ученик ни
+    разу не открывал раздел «Чаты»), создаётся пустой — переписка начнётся
+    с первого сообщения."""
+    permission_classes = [IsAdmin]
+
+    def get(self, request, student_id):
+        User = get_user_model()
+        student = get_object_or_404(User, pk=student_id, role='student')
+        thread = ensure_direct_thread(student)
+        return Response(ChatThreadSerializer(thread, context={'request': request}).data)
 
 
 class ChatMessageListView(APIView):

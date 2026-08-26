@@ -1,5 +1,6 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import Sidebar from './Sidebar.vue'
 import { useChatsStore } from '../../store/chats'
 import { useUiStore } from '../../store/ui'
@@ -13,6 +14,8 @@ defineProps({
 const store = useChatsStore()
 const ui = useUiStore()
 const auth = useAuthStore()
+const route = useRoute()
+const router = useRouter()
 const openThreadId = ref(null)
 const draft = ref('')
 const scrollEl = ref(null)
@@ -159,7 +162,28 @@ function cancelRecording() {
 
 onMounted(async () => {
   await store.fetchThreads()
+  await openRequestedThread()
 })
+
+// Открыт по ссылке из карточки ученика (?thread=123) — сразу открываем
+// нужный чат, не заставляя администратора искать его в списке. Отдельный
+// watch (а не только onMounted) нужен, потому что если панель чата уже
+// была смонтирована раньше (SPA-переход в пределах того же роута),
+// onMounted второй раз не сработает — а query всё равно поменяется.
+watch(() => route.query.thread, async () => {
+  await openRequestedThread()
+})
+
+async function openRequestedThread() {
+  const requestedId = Number(route.query.thread)
+  if (!requestedId) return
+  if (!store.threads.some((t) => t.id === requestedId)) {
+    await store.fetchThreads()
+  }
+  if (store.threads.some((t) => t.id === requestedId)) {
+    await openThread(requestedId)
+  }
+}
 onUnmounted(() => {
   if (poll) clearInterval(poll)
   if (isRecording.value) cancelRecording()
