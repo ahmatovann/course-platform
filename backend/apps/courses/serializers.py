@@ -7,9 +7,15 @@ from .services import module_status, is_module_unlocked, course_progress_percent
 
 
 class MaterialSerializer(serializers.ModelSerializer):
+    is_favorite = serializers.SerializerMethodField()
+
     class Meta:
         model = Material
-        fields = ['id', 'name', 'file', 'kind']
+        fields = ['id', 'name', 'file', 'kind', 'is_favorite']
+
+    def get_is_favorite(self, obj):
+        request = self.context.get('request')
+        return bool(request and request.user.is_authenticated and obj.favorited_by.filter(pk=request.user.id).exists())
 
 
 class LessonListSerializer(serializers.ModelSerializer):
@@ -32,6 +38,19 @@ class LessonDetailSerializer(LessonListSerializer):
             'description', 'video_url', 'video_file', 'video_poster', 'video_audio_file',
             'materials', 'module',
         ]
+
+
+class FavoriteMaterialSerializer(serializers.ModelSerializer):
+    """Файл урока, отмеченный учеником «в избранное» — с указанием, в каком
+    курсе/модуле/уроке он находится, чтобы ученик мог быстро вернуться туда."""
+    lesson_id = serializers.IntegerField(source='lesson.id', read_only=True)
+    lesson_title = serializers.CharField(source='lesson.title', read_only=True)
+    module_title = serializers.CharField(source='lesson.module.title', read_only=True)
+    course_title = serializers.CharField(source='lesson.module.course.title', read_only=True)
+
+    class Meta:
+        model = Material
+        fields = ['id', 'name', 'file', 'kind', 'lesson_id', 'lesson_title', 'module_title', 'course_title']
 
 
 class CommentSerializer(serializers.ModelSerializer):

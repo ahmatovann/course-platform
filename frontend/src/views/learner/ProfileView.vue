@@ -7,6 +7,7 @@ import AvatarCropper from '../../components/common/AvatarCropper.vue'
 import { useAuthStore } from '../../store/auth'
 import { useUiStore } from '../../store/ui'
 import { useCoursesStore } from '../../store/courses'
+import { iconForKind } from '../../utils/fileKind'
 import { learnerLinks as links } from '../../nav'
 
 const auth = useAuthStore()
@@ -18,7 +19,15 @@ const loadingCourses = ref(true)
 onMounted(async () => {
   if (coursesStore.courses.length === 0) await coursesStore.fetchCourses()
   loadingCourses.value = false
+  await coursesStore.fetchFavoriteMaterials()
 })
+
+// Всё в этом списке уже избранное по определению (пришло из /materials/favorites/),
+// поэтому убираем напрямую — не через toggle, который ждёт поле is_favorite.
+async function unfavorite(material) {
+  await coursesStore.toggleMaterialFavorite({ ...material, is_favorite: true })
+  coursesStore.favoriteMaterials = coursesStore.favoriteMaterials.filter((m) => m.id !== material.id)
+}
 
 function formatDate(iso) {
   if (!iso) return '—'
@@ -268,6 +277,20 @@ function courseStatus(c) {
                 <button type="button" :class="{ active: ui.theme === 'dark' }" @click="ui.setTheme('dark')">Тёмная</button>
                 <button type="button" :class="{ active: ui.theme === 'light' }" @click="ui.setTheme('light')">Светлая</button>
               </div>
+            </div>
+          </div>
+
+          <div class="mini-card">
+            <h4>Избранное</h4>
+            <p style="color:var(--text-dim); font-size:12.5px; margin:-4px 0 12px;">Файлы уроков, которые вы отметили звёздочкой — для быстрого возврата</p>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <div v-for="m in coursesStore.favoriteMaterials" :key="m.id" class="material-row" style="margin-bottom:0;">
+                <div class="type-icon">{{ iconForKind(m.kind) }}</div>
+                <div class="name">{{ m.name }}<span class="kind-label">{{ m.course_title }} · {{ m.module_title }} · {{ m.lesson_title }}</span></div>
+                <button type="button" class="material-fav-btn active" @click="unfavorite(m)" title="Убрать из избранного">★</button>
+                <a class="dl" :href="m.file" target="_blank">Открыть</a>
+              </div>
+              <p v-if="coursesStore.favoriteMaterials.length === 0" style="color:var(--text-dim); font-size:13px;">Пока ничего не добавлено — нажмите ☆ рядом с файлом урока.</p>
             </div>
           </div>
         </div>

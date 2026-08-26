@@ -166,6 +166,10 @@ function formatTime(iso) {
               <h4>Материалы урока</h4>
               <div class="material-row" v-for="m in lesson.materials" :key="m.id">
                 <div class="type-icon">{{ iconForKind(m.kind) }}</div><div class="name">{{ m.name }}</div>
+                <button
+                  type="button" class="material-fav-btn" :class="{ active: m.is_favorite }"
+                  @click="store.toggleMaterialFavorite(m)" :title="m.is_favorite ? 'Убрать из избранного' : 'В избранное'"
+                >{{ m.is_favorite ? '★' : '☆' }}</button>
                 <a class="dl" :href="m.file" target="_blank">Смотреть</a>
               </div>
             </div>

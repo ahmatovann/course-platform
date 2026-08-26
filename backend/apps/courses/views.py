@@ -6,11 +6,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .certificates import generate_certificate_pdf
-from .models import Course, Module, Lesson, Test, LessonProgress, Enrollment, Comment
+from .models import Course, Module, Lesson, Material, Test, LessonProgress, Enrollment, Comment
 from .serializers import (
     CourseListSerializer, CourseDetailSerializer, ModuleDetailSerializer,
     LessonDetailSerializer, TestPublicSerializer, TestSubmitSerializer,
     TestAttemptSerializer, CommentSerializer,
+    MaterialSerializer, FavoriteMaterialSerializer,
 )
 from .services import course_progress_percent
 
@@ -64,6 +65,33 @@ class LessonDetailView(generics.RetrieveAPIView):
         if self.request.user.role != 'admin':
             qs = qs.filter(module__course__enrollments__user=self.request.user)
         return qs.distinct()
+
+
+class MaterialFavoriteView(APIView):
+    """Добавить/убрать файл урока из избранного — у каждого ученика своё."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        material = get_object_or_404(Material, pk=pk)
+        if request.user.role != 'admin' and not _is_enrolled(request.user, material.lesson.module.course):
+            return Response({'detail': 'Нет доступа к этому уроку'}, status=status.HTTP_403_FORBIDDEN)
+        material.favorited_by.add(request.user)
+        return Response(MaterialSerializer(material, context={'request': request}).data)
+
+    def delete(self, request, pk):
+        material = get_object_or_404(Material, pk=pk)
+        material.favorited_by.remove(request.user)
+        return Response(MaterialSerializer(material, context={'request': request}).data)
+
+
+class FavoriteMaterialsListView(APIView):
+    """Все файлы, которые ученик отметил «в избранное» — по всем тренингам
+    сразу, с указанием курса/модуля/урока, где файл находится."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        materials = Material.objects.filter(favorited_by=request.user).select_related('lesson__module__course')
+        return Response(FavoriteMaterialSerializer(materials, many=True, context={'request': request}).data)
 
 
 class MarkLessonWatchedView(APIView):

@@ -10,6 +10,7 @@ export const useCoursesStore = defineStore('courses', {
     currentLesson: null,
     currentTest: null,
     lessonComments: [],
+    favoriteMaterials: [],
   }),
   actions: {
     async fetchCourses() {
@@ -55,6 +56,23 @@ export const useCoursesStore = defineStore('courses', {
     },
     async submitTest(id, answers) {
       const { data } = await client.post(`/courses/tests/${id}/submit/`, { answers })
+      return data
+    },
+    // Файлы урока «в избранное» — чтобы ученик мог быстро вернуться к ним
+    // позже (конспектировать/разбираться), не ища заново по курсу.
+    async toggleMaterialFavorite(material) {
+      const { data } = material.is_favorite
+        ? await client.delete(`/courses/materials/${material.id}/favorite/`)
+        : await client.post(`/courses/materials/${material.id}/favorite/`)
+      if (this.currentLesson) {
+        const m = this.currentLesson.materials?.find((x) => x.id === material.id)
+        if (m) m.is_favorite = data.is_favorite
+      }
+      return data
+    },
+    async fetchFavoriteMaterials() {
+      const { data } = await client.get('/courses/materials/favorites/')
+      this.favoriteMaterials = data
       return data
     },
     async downloadCertificate(slug) {

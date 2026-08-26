@@ -68,6 +68,11 @@ class Material(models.Model):
     name = models.CharField(max_length=200)
     file = models.FileField(upload_to='lessons/materials/', blank=True, null=True)
     kind = models.CharField(max_length=20, default='file')
+    # Ученик может отметить файл урока «в избранное» — чтобы быстро вернуться
+    # к нему позже (конспектировать/разбираться), не ища заново по курсу.
+    favorited_by = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, blank=True, related_name='favorite_materials',
+    )
 
     def __str__(self):
         return self.name

@@ -22,6 +22,7 @@ const courseForm = reactive({ title: '', description: '' })
 const showModuleModal = ref(false)
 const moduleForm = reactive({ courseId: null, title: '' })
 
+const posterPreview = ref(null)
 const expandedModuleId = ref(null)
 function toggleModule(id) {
   expandedModuleId.value = expandedModuleId.value === id ? null : id
@@ -272,6 +273,12 @@ async function removeModule(m) {
               <div class="module-list" style="margin-top:14px;">
                 <div class="module-item" v-for="l in m.lessons" :key="l.id">
                   <div class="num">{{ l.order }}</div>
+                  <button
+                    v-if="l.video_poster" type="button" class="lesson-poster-thumb"
+                    @click="posterPreview = l.video_poster" title="Посмотреть кадр из видео"
+                  >
+                    <img :src="l.video_poster" alt="">
+                  </button>
                   <div class="info">
                     <h4>{{ l.title }}</h4>
                     <span>{{ l.video_file ? 'видео загружено' : (l.video_url ? 'ссылка на видео' : 'без видео') }} · {{ (l.materials || []).length }} файлов материалов</span>
@@ -359,5 +366,11 @@ async function removeModule(m) {
     </div>
 
     <VideoTrimModal :video="trimTarget" @trimmed="onTrimmed" @cancel="trimTarget = null" />
+
+    <!-- Только просмотр кадра из видео — специально без кнопки скачать/сохранить. -->
+    <div class="modal-overlay avatar-lightbox-overlay" :class="{ active: posterPreview }" @click="posterPreview = null">
+      <button type="button" class="avatar-lightbox-close" @click="posterPreview = null" aria-label="Закрыть">×</button>
+      <img v-if="posterPreview" :src="posterPreview" class="avatar-lightbox-img" alt="Кадр из видео" @click.stop @contextmenu.prevent>
+    </div>
   </div>
 </template>
