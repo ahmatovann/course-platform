@@ -12,7 +12,7 @@ const courses = useCoursesStore()
 const ui = useUiStore()
 const showModal = ref(false)
 const result = ref(null)
-const form = reactive({ name: '', email: '', phone: '', course_id: null })
+const form = reactive({ name: '', email: '', phone: '', course_id: null, access_amount: 3, access_unit: 'month' })
 const search = ref('')
 const status = ref('')
 let debounceTimer = null
@@ -38,11 +38,21 @@ async function exportStudents() {
   }
 }
 
+async function exportStudentsPdf() {
+  try {
+    await admin.exportStudentsPdf()
+  } catch (e) {
+    ui.showToast('Не удалось экспортировать PDF', 'error')
+  }
+}
+
 function openModal() {
   showModal.value = true
   result.value = null
   form.name = ''; form.email = ''; form.phone = ''
   form.course_id = courses.courses[0]?.id || null
+  form.access_amount = 3
+  form.access_unit = 'month'
 }
 
 async function createStudent() {
@@ -60,6 +70,61 @@ async function createStudent() {
 async function toggle(s) {
   await admin.toggleStudent(s.id)
   ui.showToast(s.is_active_student ? 'Ученик деактивирован' : 'Ученик активирован', s.is_active_student ? 'error' : 'success')
+}
+
+async function removeStudent(student) {
+  if (!confirm(`Удалить ученика «${student.first_name} ${student.last_name}»? Это удалит его доступ и прогресс.`)) return
+  try {
+    await admin.deleteStudent(student.id)
+    ui.showToast('Ученик удалён', 'success')
+  } catch (e) {
+    ui.showToast('Не удалось удалить ученика', 'error')
+  }
+}
+
+// Срок доступа ученика — показываем дату и подсвечиваем, если доступ уже
+// истёк или истекает в ближайшие 14 дней.
+function formatExpiry(iso) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
+function isExpired(iso) {
+  if (!iso) return false
+  return new Date(iso) < new Date()
+}
+
+function isExpiringSoon(iso) {
+  if (!iso) return false
+  const days = (new Date(iso) - new Date()) / 86400000
+  return days > 0 && days <= 14
+}
+
+const unitLabels = { day: 'дн.', week: 'нед.', month: 'мес.' }
+
+// Продление доступа — администратор сам выбирает количество и единицу
+// (день/неделя/месяц), а не только фиксированные месяцы.
+const extendModalStudentId = ref(null)
+const extendAmount = ref(1)
+const extendUnit = ref('month')
+const extendModalStudent = computed(() => admin.students.find((s) => s.id === extendModalStudentId.value) || null)
+
+function openExtendModal(s) {
+  extendModalStudentId.value = s.id
+  extendAmount.value = 1
+  extendUnit.value = 'month'
+}
+
+async function confirmExtend() {
+  const s = extendModalStudent.value
+  if (!s) return
+  try {
+    await admin.extendStudentAccess(s.id, extendAmount.value, extendUnit.value)
+    ui.showToast(`Доступ продлён на ${extendAmount.value} ${unitLabels[extendUnit.value]}`, 'success')
+    extendModalStudentId.value = null
+  } catch (e) {
+    ui.showToast('Не удалось продлить доступ', 'error')
+  }
 }
 
 const coursesModalStudentId = ref(null)
@@ -100,7 +165,8 @@ async function toggleCourse(c) {
         <div class="main-header">
           <div><h1>Ученики</h1><p>Регистрация возможна только через администратора</p></div>
           <div style="display:flex; gap:10px;">
-            <button class="dl-btn" @click="exportStudents">⬇ Экспорт в Excel</button>
+            <button class="dl-btn" @click="exportStudents">⬇ Excel</button>
+            <button class="dl-btn" @click="exportStudentsPdf">⬇ PDF</button>
             <button class="btn-primary" style="width:auto; padding:12px 22px" @click="openModal">+ Добавить ученика</button>
           </div>
         </div>
@@ -113,7 +179,7 @@ async function toggleCourse(c) {
           </select>
         </div>
         <table>
-          <thead><tr><th>Ученик</th><th>Email</th><th>Телефон</th><th>Статус</th><th>Курсы</th><th></th></tr></thead>
+          <thead><tr><th>Ученик</th><th>Email</th><th>Телефон</th><th>Статус</th><th>Доступ до</th><th>Курсы</th><th></th></tr></thead>
           <tbody>
             <tr v-for="s in admin.students" :key="s.id">
               <td>{{ s.first_name }} {{ s.last_name }}</td>
@@ -125,9 +191,16 @@ async function toggleCourse(c) {
                   @click="toggle(s)" :title="s.is_active_student ? 'Нажмите, чтобы деактивировать' : 'Нажмите, чтобы активировать'"
                 >{{ s.is_active_student ? 'Активен' : 'Не активен' }}</button>
               </td>
+              <td>
+                <span :style="{ color: isExpired(s.access_expires_at) ? 'var(--danger)' : (isExpiringSoon(s.access_expires_at) ? 'var(--gold)' : 'var(--text-mid)') }">
+                  {{ formatExpiry(s.access_expires_at) }}
+                </span>
+              </td>
               <td>{{ s.course_titles.join(', ') || '—' }}</td>
               <td class="row-actions">
                 <button @click="openCoursesModal(s)" title="Изменить курсы">Курсы</button>
+                <button @click="openExtendModal(s)" title="Продлить доступ на выбранный срок">Продлить</button>
+                <button @click="removeStudent(s)" title="Удалить ученика" style="color:var(--danger);">Удалить</button>
               </td>
             </tr>
           </tbody>
@@ -147,6 +220,17 @@ async function toggleCourse(c) {
           <select v-model="form.course_id">
             <option v-for="c in courses.courses" :key="c.id" :value="c.id">{{ c.title }}</option>
           </select>
+        </div>
+        <div class="field">
+          <label>Срок доступа</label>
+          <div style="display:flex; gap:8px;">
+            <input type="number" min="1" v-model.number="form.access_amount" style="width:90px;">
+            <select v-model="form.access_unit" style="flex:1;">
+              <option value="day">Дней</option>
+              <option value="week">Недель</option>
+              <option value="month">Месяцев</option>
+            </select>
+          </div>
         </div>
         <div class="gen-result" :class="{ show: result }" v-if="result">
           Ученик создан. Письмо отправлено на <b>{{ result.email }}</b><br>
@@ -178,6 +262,31 @@ async function toggleCourse(c) {
         </div>
         <div class="modal-footer">
           <button class="btn-primary" @click="coursesModalStudentId = null">Готово</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" :class="{ active: extendModalStudent }">
+      <div class="modal" v-if="extendModalStudent">
+        <h3>Продлить доступ</h3>
+        <p class="mod-sub">
+          {{ extendModalStudent.first_name }} {{ extendModalStudent.last_name }} — выберите, на сколько
+          продлить доступ (от сегодняшнего дня). Текущий срок: {{ formatExpiry(extendModalStudent.access_expires_at) }}.
+        </p>
+        <div class="field">
+          <label>Период продления</label>
+          <div style="display:flex; gap:8px;">
+            <input type="number" min="1" v-model.number="extendAmount" style="width:90px;">
+            <select v-model="extendUnit" style="flex:1;">
+              <option value="day">Дней</option>
+              <option value="week">Недель</option>
+              <option value="month">Месяцев</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-ghost" @click="extendModalStudentId = null">Отмена</button>
+          <button class="btn-primary" @click="confirmExtend">Продлить</button>
         </div>
       </div>
     </div>

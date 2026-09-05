@@ -11,9 +11,9 @@ onMounted(async () => {
   await store.fetchNews()
 })
 
-function formatDate(dateOnly) {
-  if (!dateOnly) return ''
-  return new Date(`${dateOnly}T00:00:00`).toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' })
+function formatDate(iso) {
+  if (!iso) return ''
+  return new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 </script>

@@ -181,7 +181,7 @@ async function removeItem(item) {
           </div>
         </div>
 
-        <div class="mini-card" style="margin-top:20px;">
+        <div v-if="false" class="mini-card" style="margin-top:20px;">
           <h4>Материалы</h4>
           <p style="color:var(--text-dim); font-size:12.5px; margin:-4px 0 14px;">Все загруженные видео уроков и файлы — в одном месте: где используются, размер, переименование и удаление</p>
 

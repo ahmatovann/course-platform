@@ -29,7 +29,7 @@ const sortedTests = computed(() => {
 
 const showModal = ref(false)
 const editingId = ref(null)
-const form = reactive({ title: '', module: null, questions: [] })
+const form = reactive({ title: '', module: null, questions: [], require_lessons_watched: true, max_attempts: 0 })
 
 // модули без теста (для создания нового) + модуль редактируемого теста
 const availableModules = ref([])
@@ -67,6 +67,8 @@ function openCreate() {
   form.title = ''
   form.module = availableModules.value[0]?.id || null
   form.questions = [blankQuestion()]
+  form.require_lessons_watched = true
+  form.max_attempts = 0
   showModal.value = true
 }
 
@@ -79,6 +81,8 @@ async function openEdit(test) {
     text: q.text,
     options: q.options.map((o) => ({ text: o.text, is_correct: o.is_correct })),
   }))
+  form.require_lessons_watched = detail.require_lessons_watched
+  form.max_attempts = detail.max_attempts
   showModal.value = true
 }
 
@@ -168,6 +172,14 @@ async function remove(id) {
           <select v-model="form.module">
             <option v-for="m in availableModules" :key="m.id" :value="m.id">{{ m.label }}</option>
           </select>
+        </div>
+        <div class="toggle-row">
+          <div class="lbl">Требовать просмотр всех уроков<small>Если выключить, ученик сможет открыть тест сразу</small></div>
+          <label class="switch"><input type="checkbox" v-model="form.require_lessons_watched"><span class="slider"></span></label>
+        </div>
+        <div class="field">
+          <label>Максимум попыток <small>(0 — без ограничений)</small></label>
+          <input type="number" min="0" max="1000" v-model.number="form.max_attempts">
         </div>
 
         <div v-for="(q, qi) in form.questions" :key="qi" class="q-block">

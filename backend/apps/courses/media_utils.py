@@ -218,3 +218,21 @@ def transcode_lesson_video(lesson):
     finally:
         if os.path.exists(tmp_out):
             os.remove(tmp_out)
+
+
+def ensure_lesson_audio(lesson):
+    """Создаёт аудио-версию уже существующего видео без копирования видео."""
+    if not lesson.video_file or not ffmpeg_available():
+        return
+    try:
+        video_path = lesson.video_file.path
+    except (ValueError, NotImplementedError):
+        return
+    if not os.path.exists(video_path):
+        return
+
+    base_name = os.path.splitext(os.path.basename(lesson.video_file.name))[0]
+    audio_field = _extract_audio(video_path, base_name)
+    if audio_field:
+        lesson.video_audio_file.save(audio_field[0], audio_field[1], save=False)
+        lesson.save(update_fields=['video_audio_file'])

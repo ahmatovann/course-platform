@@ -64,7 +64,9 @@ class Lesson(models.Model):
 
 
 class Material(models.Model):
-    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='materials')
+    # Материал теперь можно загрузить в раздел «Материалы» без привязки к
+    # уроку (lesson может быть NULL) — прикрепляется к уроку позже.
+    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='materials', null=True, blank=True)
     name = models.CharField(max_length=200)
     file = models.FileField(upload_to='lessons/materials/', blank=True, null=True)
     kind = models.CharField(max_length=20, default='file')
@@ -86,6 +88,8 @@ class LessonProgress(models.Model):
 class Test(models.Model):
     module = models.OneToOneField(Module, on_delete=models.CASCADE, related_name='test')
     title = models.CharField(max_length=200)
+    require_lessons_watched = models.BooleanField(default=True)
+    max_attempts = models.PositiveIntegerField(default=0, help_text='0 означает без ограничений')
 
     def __str__(self):
         return self.title

@@ -14,7 +14,7 @@ class StudentSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'first_name', 'last_name', 'email', 'phone',
-            'is_active_student', 'date_joined', 'course_titles', 'course_ids',
+            'is_active_student', 'date_joined', 'access_expires_at', 'course_titles', 'course_ids',
         ]
 
     def get_course_titles(self, obj):
@@ -29,6 +29,10 @@ class CreateStudentSerializer(serializers.Serializer):
     email = serializers.EmailField()
     phone = serializers.CharField(max_length=32, required=False, allow_blank=True)
     course_id = serializers.PrimaryKeyRelatedField(queryset=Course.objects.all(), required=False, allow_null=True)
+    # Срок доступа ученика — администратор сам выбирает количество и единицу
+    # (день/неделя/месяц) вместо фиксированных 3 месяцев.
+    access_amount = serializers.IntegerField(required=False, default=3, min_value=1, max_value=3650)
+    access_unit = serializers.ChoiceField(choices=['day', 'week', 'month'], required=False, default='month')
 
     def validate_email(self, value):
         if User.objects.filter(email__iexact=value).exists():
@@ -166,7 +170,10 @@ class AdminTestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Test
-        fields = ['id', 'title', 'module', 'module_title', 'questions']
+        fields = [
+            'id', 'title', 'module', 'module_title', 'questions',
+            'require_lessons_watched', 'max_attempts',
+        ]
 
 
 class AdminTestWriteSerializer(serializers.Serializer):
@@ -174,6 +181,8 @@ class AdminTestWriteSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=200)
     module = serializers.PrimaryKeyRelatedField(queryset=Module.objects.all())
     questions = serializers.ListField(child=serializers.DictField(), allow_empty=False)
+    require_lessons_watched = serializers.BooleanField(required=False, default=True)
+    max_attempts = serializers.IntegerField(required=False, default=0, min_value=0, max_value=1000)
 
     def validate_questions(self, value):
         for q in value:
@@ -187,13 +196,19 @@ class AdminTestWriteSerializer(serializers.Serializer):
         return value
 
     def create(self, validated_data):
-        test = Test.objects.create(title=validated_data['title'], module=validated_data['module'])
+        test = Test.objects.create(
+            title=validated_data['title'], module=validated_data['module'],
+            require_lessons_watched=validated_data['require_lessons_watched'],
+            max_attempts=validated_data['max_attempts'],
+        )
         self._write_questions(test, validated_data['questions'])
         return test
 
     def update(self, instance, validated_data):
         instance.title = validated_data['title']
-        instance.save(update_fields=['title'])
+        instance.require_lessons_watched = validated_data['require_lessons_watched']
+        instance.max_attempts = validated_data['max_attempts']
+        instance.save(update_fields=['title', 'require_lessons_watched', 'max_attempts'])
         instance.questions.all().delete()
         self._write_questions(instance, validated_data['questions'])
         return instance

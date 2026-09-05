@@ -33,10 +33,10 @@ watch(() => route.params.id, load)
             <div class="info"><h4>{{ l.title }}</h4><span>Видео {{ Math.round(l.duration_seconds / 60) }} мин</span></div>
             <div class="status-icon" :style="{ color: l.watched ? 'var(--ok)' : 'var(--gold)' }">{{ l.watched ? '✓' : '●' }}</div>
           </div>
-          <div v-if="module.has_test" class="lesson-item" @click="router.push({ name: 'test', params: { id: module.test_id } })">
+          <div v-if="module.has_test" class="lesson-item" @click="module.test_available && router.push({ name: 'test', params: { id: module.test_id } })">
             <div class="num">T</div>
-            <div class="info"><h4>Тест модуля</h4><span>Порог прохождения — {{ module.pass_threshold_percent }}%</span></div>
-            <div class="status-icon" :style="{ color: module.status.test_passed ? 'var(--ok)' : 'var(--gold)' }">{{ module.status.test_passed ? '✓' : '●' }}</div>
+            <div class="info"><h4>Тест модуля</h4><span>{{ module.test_available ? `Порог прохождения — ${module.pass_threshold_percent}%` : 'Сначала завершите уроки или предыдущий модуль' }}</span></div>
+            <div class="status-icon" :style="{ color: module.status.test_passed ? 'var(--ok)' : (module.test_available ? 'var(--gold)' : 'var(--text-dim)') }">{{ module.status.test_passed ? '✓' : (module.test_available ? '●' : '▪') }}</div>
           </div>
         </div>
       </div>

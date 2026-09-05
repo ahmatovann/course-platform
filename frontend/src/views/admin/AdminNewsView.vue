@@ -51,14 +51,23 @@ const sortedItems = computed(() => {
   }
 })
 
+// Приводим ISO-строку с сервера (например, "2026-08-22T14:30:00+06:00") к
+// формату, который понимает <input type="datetime-local">: "YYYY-MM-DDTHH:mm".
+function toLocalInput(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 function openCreate() {
   editingId.value = null
   form.title = ''
   form.description = ''
   form.link_url = ''
-  // Дата рассылки по умолчанию — сегодня (новость публикуется сразу),
-  // администратор при необходимости переносит её на будущее.
-  form.publish_at = new Date().toISOString().slice(0, 10)
+  // Дата и время рассылки по умолчанию — сейчас (новость публикуется
+  // сразу), администратор при необходимости переносит их на будущее.
+  form.publish_at = toLocalInput(new Date().toISOString())
   form.hide_at = ''
   form.course = null
   showModal.value = true
@@ -69,8 +78,8 @@ function openEdit(n) {
   form.title = n.title
   form.description = n.description || ''
   form.link_url = n.link_url || ''
-  form.publish_at = n.publish_at
-  form.hide_at = n.hide_at || ''
+  form.publish_at = toLocalInput(n.publish_at)
+  form.hide_at = n.hide_at ? toLocalInput(n.hide_at) : ''
   form.course = n.course
   showModal.value = true
 }
@@ -86,9 +95,9 @@ function normalizeLink(url) {
 }
 
 async function save() {
-  if (!form.title.trim() || !form.publish_at) { ui.showToast('Укажите название и дату рассылки', 'error'); return }
+  if (!form.title.trim() || !form.publish_at) { ui.showToast('Укажите название, дату и время рассылки', 'error'); return }
   if (form.hide_at && form.hide_at <= form.publish_at) {
-    ui.showToast('Дата скрытия должна быть позже даты рассылки', 'error')
+    ui.showToast('Дата и время скрытия должны быть позже даты и времени рассылки', 'error')
     return
   }
   const payload = {
@@ -117,9 +126,9 @@ async function remove(id) {
   ui.showToast('Новость удалена', 'success')
 }
 
-function formatDate(dateOnly) {
-  if (!dateOnly) return '—'
-  return new Date(`${dateOnly}T00:00:00`).toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' })
+function formatDate(iso) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 function excerpt(text) {
@@ -152,7 +161,7 @@ function excerpt(text) {
           </select>
         </div>
         <table>
-          <thead><tr><th>Дата рассылки</th><th>Скрыть после</th><th>Статус</th><th>Новость</th><th>Описание</th><th>Ссылка</th><th>Тренинг</th><th></th></tr></thead>
+          <thead><tr><th>Дата и время рассылки</th><th>Скрыть после</th><th>Статус</th><th>Новость</th><th>Описание</th><th>Ссылка</th><th>Тренинг</th><th></th></tr></thead>
           <tbody>
             <tr v-for="n in sortedItems" :key="n.id">
               <td>{{ formatDate(n.publish_at) }}</td>
@@ -185,18 +194,18 @@ function excerpt(text) {
         <div class="field"><label>Название</label><input v-model="form.title" placeholder="Открытие урока «Скулы и контуринг»"></div>
         <div class="field">
           <label>Описание</label>
-          <textarea v-model="form.description" rows="4" placeholder="Подробности новости — если важно время, укажите его прямо здесь в тексте (например «в 18:00»)"></textarea>
+          <textarea v-model="form.description" rows="4" placeholder="Подробности новости — необязательно"></textarea>
         </div>
         <div class="field"><label>Ссылка (необязательно)</label><input type="url" v-model="form.link_url" placeholder="https://..."></div>
         <div class="field">
-          <label>Дата рассылки</label>
-          <input type="date" v-model="form.publish_at">
-          <div class="hint">С этой даты новость видна ученикам. Время — если нужно — впишите прямо в описание выше.</div>
+          <label>Дата и время объявления</label>
+          <input type="datetime-local" v-model="form.publish_at">
+          <div class="hint">С этого момента новость видна ученикам.</div>
         </div>
         <div class="field">
-          <label>Дата скрытия (необязательно)</label>
-          <input type="date" v-model="form.hide_at">
-          <div class="hint">После этой даты новость автоматически перестанет быть видна ученикам (сама запись не удаляется).</div>
+          <label>Дата и время скрытия (необязательно)</label>
+          <input type="datetime-local" v-model="form.hide_at">
+          <div class="hint">После этого момента новость автоматически перестанет быть видна ученикам (сама запись не удаляется).</div>
         </div>
         <div class="field">
           <label>Тренинг (необязательно — иначе видят все ученики)</label>
