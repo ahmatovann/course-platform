@@ -73,7 +73,11 @@ const search = ref('')
 const sortBy = ref('name_asc')
 let debounceTimer = null
 
-onMounted(() => load())
+onMounted(async () => {
+  await auth.fetchProfile()
+  avatarPreview.value = auth.user?.avatar || null
+  await load()
+})
 
 watch([search, sortBy], () => {
   if (debounceTimer) clearTimeout(debounceTimer)

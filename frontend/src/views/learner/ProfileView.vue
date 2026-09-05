@@ -15,6 +15,7 @@ const router = useRouter()
 
 const loadingCourses = ref(true)
 onMounted(async () => {
+  await auth.fetchProfile()
   if (coursesStore.courses.length === 0) await coursesStore.fetchCourses()
   loadingCourses.value = false
 })

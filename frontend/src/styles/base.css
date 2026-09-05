@@ -206,7 +206,9 @@
     .avatar {
       width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--gold), #8C6F3E);
       display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--on-accent); font-size: 13px;
+      overflow: hidden; flex-shrink: 0;
     }
+    .avatar img { width: 100%; height: 100%; object-fit: cover; }
     .side-footer .name { font-size: 13px; font-weight: 600; }
     .side-footer .role { font-size: 11px; color: var(--text-dim); }
     .bell-wrap { margin-left: auto; }
@@ -219,6 +221,27 @@
     }
     .main-header h1 { font-family: var(--font-display); font-size: 30px; font-weight: 600; }
     .main-header p { color: var(--text-dim); font-size: 13px; margin-top: 4px; }
+
+    .profile-grid { display: grid; grid-template-columns: minmax(320px, .9fr) minmax(420px, 1.1fr); gap: 20px; align-items: start; }
+    .profile-hero { min-height: 250px; }
+    .profile-hero-top, .profile-avatar-row { display: flex; align-items: center; gap: 18px; }
+    .profile-avatar-lg { width: 112px; height: 112px; border: 0; border-radius: 50%; overflow: hidden; flex: 0 0 112px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--gold), #8C6F3E); color: var(--on-accent); font-size: 30px; font-weight: 700; padding: 0; }
+    .profile-avatar-lg img { width: 100%; height: 100%; object-fit: cover; }
+    .profile-avatar-lg-edit { width: 96px; height: 96px; flex-basis: 96px; }
+    .profile-avatar-lg.clickable { cursor: zoom-in; }
+    .profile-hero-info { min-width: 0; }
+    .profile-hero-info h2 { font-family: var(--font-display); font-size: 24px; margin-bottom: 12px; overflow-wrap: anywhere; }
+    .profile-info-row { color: var(--text-mid); font-size: 12.5px; line-height: 1.7; }
+    .profile-info-row span { color: var(--text-dim); }
+    .profile-edit-btn { position: absolute; top: 16px; right: 16px; color: var(--gold); font-size: 18px; background: transparent; cursor: pointer; }
+    .profile-avatar-links { display: flex; flex-direction: column; gap: 8px; }
+    .avatar-action-btn { border: 1px solid var(--line); border-radius: 8px; background: var(--navy-soft); color: var(--text-hi); padding: 8px 12px; cursor: pointer; font-size: 12px; }
+    .avatar-action-btn:hover { border-color: var(--gold); color: var(--gold); }
+    .profile-actions { display: flex; gap: 10px; margin-top: 16px; }
+    .avatar-lightbox-overlay { align-items: center; justify-content: center; }
+    .avatar-lightbox-img { max-width: min(90vw, 720px); max-height: 85vh; object-fit: contain; border-radius: 12px; }
+    .avatar-lightbox-close { position: fixed; top: 24px; right: 28px; color: white; background: transparent; font-size: 30px; cursor: pointer; }
+    @media (max-width: 900px) { .profile-grid { grid-template-columns: 1fr; } }
 
     .view { display: none; animation: fadeUp .3s ease; }
     .view.active { display: block; }
