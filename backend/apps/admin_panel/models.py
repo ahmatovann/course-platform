@@ -20,3 +20,9 @@ def record_student_activity(student, action, description, actor=None, entity_typ
 		student=student, actor=actor, action=action, description=description,
 		entity_type=entity_type, entity_id=entity_id,
 	)
+
+
+def record_admin_activity(actor, action, description, entity_type='', entity_id=None):
+	return record_student_activity(
+		None, action, description, actor, entity_type, entity_id,
+	)

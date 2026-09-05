@@ -47,6 +47,16 @@ class ProfileView(APIView):
     def get(self, request):
         return Response(UserSerializer(request.user, context={'request': request}).data)
 
+
+class ProfileActivityView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from apps.admin_panel.models import StudentActivity
+        from apps.admin_panel.serializers import StudentActivitySerializer
+        items = StudentActivity.objects.filter(student=request.user).select_related('actor')
+        return Response(StudentActivitySerializer(items, many=True).data)
+
     def patch(self, request):
         serializer = ProfileUpdateSerializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)

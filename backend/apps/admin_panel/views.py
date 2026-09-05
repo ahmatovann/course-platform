@@ -14,7 +14,7 @@ from apps.courses.models import Course, Enrollment
 from django.utils import timezone
 
 from .serializers import StudentSerializer, CreateStudentSerializer, StudentActivitySerializer
-from .models import StudentActivity, record_student_activity
+from .models import StudentActivity, record_student_activity, record_admin_activity
 
 User = get_user_model()
 
@@ -135,6 +135,8 @@ class DeleteStudentView(APIView):
 
     def delete(self, request, pk):
         student = get_object_or_404(User, pk=pk, role=User.Role.STUDENT)
+        name = student.get_full_name() or student.email
+        record_admin_activity(request.user, 'student_deleted', f'Удалён ученик «{name}»', 'student', student.id)
         student.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -217,6 +219,7 @@ class AdminCourseDeleteView(APIView):
 
     def delete(self, request, pk):
         course = get_object_or_404(Course, pk=pk)
+        record_admin_activity(request.user, 'course_deleted', f'Удалён курс «{course.title}»', 'course', course.id)
         course.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -229,10 +232,12 @@ class AdminModuleUpdateView(APIView):
         serializer = AdminModuleUpdateSerializer(module, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        record_admin_activity(request.user, 'module_updated', f'Изменён модуль «{module.title}»', 'module', module.id)
         return Response(AdminModuleSerializer(module).data)
 
     def delete(self, request, pk):
         module = get_object_or_404(Module, pk=pk)
+        record_admin_activity(request.user, 'module_deleted', f'Удалён модуль «{module.title}»', 'module', module.id)
         module.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -249,6 +254,7 @@ class AdminLessonCreateView(APIView):
         })
         serializer.is_valid(raise_exception=True)
         lesson = serializer.save(module=module)
+        record_admin_activity(request.user, 'lesson_created', f'Добавлен урок «{lesson.title}»', 'lesson', lesson.id)
         if lesson.video_file:
             from apps.courses.media_utils import transcode_lesson_video
             transcode_lesson_video(lesson)
@@ -268,6 +274,7 @@ class AdminLessonUpdateDeleteView(APIView):
         serializer = AdminLessonWriteSerializer(lesson, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        record_admin_activity(request.user, 'lesson_updated', f'Изменён урок «{lesson.title}»', 'lesson', lesson.id)
         # Перекодируем видео в совместимый формат (H.264+AAC/MP4) только когда
         # в этом запросе реально пришёл новый файл — чтобы звук гарантированно
         # воспроизводился в любом браузере независимо от исходного кодека.
@@ -278,6 +285,7 @@ class AdminLessonUpdateDeleteView(APIView):
 
     def delete(self, request, pk):
         lesson = get_object_or_404(Lesson, pk=pk)
+        record_admin_activity(request.user, 'lesson_deleted', f'Удалён урок «{lesson.title}»', 'lesson', lesson.id)
         lesson.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -310,6 +318,7 @@ class AdminTestCreateView(APIView):
         serializer = AdminTestWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         test = serializer.save()
+        record_admin_activity(request.user, 'test_created', f'Создан тест «{test.title}»', 'test', test.id)
 
         from apps.notifications.models import notify_many
         students = User.objects.filter(enrollments__course=test.module.course).distinct()
@@ -326,10 +335,12 @@ class AdminTestUpdateDeleteView(APIView):
         serializer = AdminTestWriteSerializer(test, data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        record_admin_activity(request.user, 'test_updated', f'Изменён тест «{test.title}»', 'test', test.id)
         return Response(AdminTestSerializer(test).data)
 
     def delete(self, request, pk):
         test = get_object_or_404(Test, pk=pk)
+        record_admin_activity(request.user, 'test_deleted', f'Удалён тест «{test.title}»', 'test', test.id)
         test.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -527,6 +538,7 @@ class AdminMaterialCreateView(APIView):
         serializer = AdminMaterialWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         material = serializer.save(lesson=lesson)
+        record_admin_activity(request.user, 'material_created', f'Добавлен материал «{material.name}»', 'material', material.id)
         return Response(AdminMaterialSerializer(material).data, status=status.HTTP_201_CREATED)
 
 
@@ -541,6 +553,7 @@ class AdminMaterialLibraryCreateView(APIView):
         serializer = AdminMaterialWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         material = serializer.save(lesson=None)
+        record_admin_activity(request.user, 'material_created', f'Добавлен материал «{material.name}» в библиотеку', 'material', material.id)
         return Response(AdminMaterialSerializer(material).data, status=status.HTTP_201_CREATED)
 
 
@@ -565,6 +578,7 @@ class AdminMaterialAttachView(APIView):
             material = Material.objects.create(
                 lesson=lesson, name=source.name, file=source.file.name, kind=source.kind,
             )
+            record_admin_activity(request.user, 'material_attached', f'Материал «{source.name}» прикреплён к уроку «{lesson.title}»', 'material', material.id)
         elif media_id.startswith('video-'):
             source_lesson = get_object_or_404(Lesson, pk=media_id.split('-', 1)[1])
             if not source_lesson.video_file:
@@ -574,6 +588,7 @@ class AdminMaterialAttachView(APIView):
             lesson.save(update_fields=['video_file', 'duration_seconds'])
             from apps.courses.media_utils import ensure_lesson_audio
             ensure_lesson_audio(lesson)
+            record_admin_activity(request.user, 'video_attached', f'Видео прикреплено к уроку «{lesson.title}»', 'lesson', lesson.id)
             return Response(AdminLessonSerializer(lesson).data, status=status.HTTP_201_CREATED)
         else:
             return Response({'detail': 'Некорректный идентификатор файла'}, status=status.HTTP_400_BAD_REQUEST)
@@ -592,6 +607,7 @@ class AdminMaterialDeleteView(APIView):
         serializer = AdminMaterialWriteSerializer(material, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        record_admin_activity(request.user, 'material_updated', f'Изменён материал «{material.name}»', 'material', material.id)
         return Response(AdminMaterialSerializer(material).data)
 
     def delete(self, request, pk):
@@ -599,6 +615,7 @@ class AdminMaterialDeleteView(APIView):
         был прикреплён. Именно это действие вызывается из раздела
         «Материалы» (там же стоит подтверждение)."""
         material = get_object_or_404(Material, pk=pk)
+        record_admin_activity(request.user, 'material_deleted', f'Удалён материал «{material.name}»', 'material', material.id)
         material.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -611,6 +628,7 @@ class AdminLessonVideoDeleteView(APIView):
 
     def delete(self, request, pk):
         lesson = get_object_or_404(Lesson, pk=pk)
+        record_admin_activity(request.user, 'video_deleted', f'Удалено видео урока «{lesson.title}»', 'lesson', lesson.id)
         lesson.video_file.delete(save=False)
         lesson.video_poster.delete(save=False)
         lesson.video_audio_file.delete(save=False)
@@ -634,6 +652,7 @@ class AdminCourseCreateView(APIView):
         serializer = AdminCourseWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         course = serializer.save()
+        record_admin_activity(request.user, 'course_created', f'Создан курс «{course.title}»', 'course', course.id)
         return Response(AdminCourseSerializer(course).data, status=status.HTTP_201_CREATED)
 
 
@@ -649,6 +668,7 @@ class AdminModuleCreateView(APIView):
             course=course, order=count + 1,
             require_test_to_unlock_next=True, pass_threshold_percent=80, allow_downloads=True,
         )
+        record_admin_activity(request.user, 'module_created', f'Создан модуль «{module.title}»', 'module', module.id)
         return Response(AdminModuleSerializer(module).data, status=status.HTTP_201_CREATED)
 
 

@@ -33,6 +33,10 @@ export const useAuthStore = defineStore('auth', {
       localStorage.setItem('user', JSON.stringify(data))
       return data
     },
+    async fetchActivity() {
+      const { data } = await client.get('/profile/activity/')
+      return data
+    },
     async updateProfile(payload) {
       const { data } = await client.patch('/profile/', payload)
       this.user = data
