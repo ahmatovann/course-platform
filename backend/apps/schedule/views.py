@@ -51,6 +51,8 @@ class ScheduleCreateView(APIView):
         serializer = ScheduleEventWriteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         event = serializer.save(created_by=request.user)
+        from apps.admin_panel.models import record_student_activity
+        record_student_activity(None, 'news_created', f'Создана новость «{event.title}»', request.user, 'news', event.id)
 
         # «Дата и время рассылки» здесь управляют только видимостью
         # (публикацией) — никакой реальной отправки email/push нет.
@@ -77,9 +79,14 @@ class ScheduleUpdateDeleteView(APIView):
         serializer = ScheduleEventWriteSerializer(event, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        from apps.admin_panel.models import record_student_activity
+        record_student_activity(None, 'news_updated', f'Изменена новость «{event.title}»', request.user, 'news', event.id)
         return Response(ScheduleEventSerializer(event).data)
 
     def delete(self, request, pk):
         event = get_object_or_404(ScheduleEvent, pk=pk)
+        title = event.title
         event.delete()
+        from apps.admin_panel.models import record_student_activity
+        record_student_activity(None, 'news_deleted', f'Удалена новость «{title}»', request.user, 'news', pk)
         return Response(status=status.HTTP_204_NO_CONTENT)

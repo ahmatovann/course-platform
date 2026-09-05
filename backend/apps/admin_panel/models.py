@@ -3,7 +3,7 @@ from django.conf import settings
 
 
 class StudentActivity(models.Model):
-	student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='activity_log')
+	student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True, related_name='activity_log')
 	actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='recorded_student_activity')
 	action = models.CharField(max_length=80)
 	description = models.TextField()

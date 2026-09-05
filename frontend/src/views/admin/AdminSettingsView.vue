@@ -197,7 +197,7 @@ async function removeItem(item) {
           <div class="admin-history-table" v-if="adminActivity.length">
             <div class="admin-history-row admin-history-head"><span>Когда</span><span>Действие</span></div>
             <div class="admin-history-row" v-for="item in adminActivity" :key="item.id">
-              <time>{{ formatActivityDate(item.created_at) }}</time><span>{{ item.description }}</span>
+              <time>{{ formatActivityDate(item.created_at) }}</time><span>{{ item.description }}<small v-if="item.student_name && item.student_name !== 'Общее действие'"> · {{ item.student_name }}</small></span>
             </div>
           </div>
           <p v-else class="empty-state">История пока пуста.</p>

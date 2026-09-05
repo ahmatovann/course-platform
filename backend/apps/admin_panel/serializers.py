@@ -27,13 +27,17 @@ class StudentSerializer(serializers.ModelSerializer):
 
 class StudentActivitySerializer(serializers.ModelSerializer):
     actor_name = serializers.SerializerMethodField()
+    student_name = serializers.SerializerMethodField()
 
     class Meta:
         model = StudentActivity
-        fields = ['id', 'action', 'description', 'entity_type', 'entity_id', 'actor_name', 'created_at']
+        fields = ['id', 'action', 'description', 'entity_type', 'entity_id', 'actor_name', 'student_name', 'created_at']
 
     def get_actor_name(self, obj):
         return obj.actor.get_full_name() or obj.actor.email if obj.actor else 'Система'
+
+    def get_student_name(self, obj):
+        return obj.student.get_full_name() or obj.student.email if obj.student else 'Общее действие'
 
 
 class CreateStudentSerializer(serializers.Serializer):
