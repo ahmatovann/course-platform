@@ -16,6 +16,7 @@ const store = useCoursesStore()
 const ui = useUiStore()
 const auth = useAuthStore()
 const lesson = ref(null)
+const isFavorite = ref(false)
 const embedUrl = computed(() => (lesson.value ? embedVideoUrl(lesson.value.video_url) : null))
 const draft = ref('')
 const commentsEl = ref(null)
@@ -90,8 +91,21 @@ async function scrollCommentsToBottom() {
 
 async function load() {
   lesson.value = await store.fetchLesson(route.params.id)
+  const favorites = JSON.parse(localStorage.getItem('course_favorites') || '[]')
+  isFavorite.value = favorites.some((item) => String(item.id) === String(lesson.value.id))
   await store.fetchComments(route.params.id)
   await scrollCommentsToBottom()
+}
+
+function toggleFavorite() {
+  const favorites = JSON.parse(localStorage.getItem('course_favorites') || '[]')
+  if (isFavorite.value) {
+    localStorage.setItem('course_favorites', JSON.stringify(favorites.filter((item) => String(item.id) !== String(lesson.value.id))))
+  } else {
+    favorites.push({ id: lesson.value.id, title: lesson.value.title, course: 'Урок курса' })
+    localStorage.setItem('course_favorites', JSON.stringify(favorites))
+  }
+  isFavorite.value = !isFavorite.value
 }
 onMounted(load)
 watch(() => route.params.id, load)
@@ -148,6 +162,9 @@ function formatTime(iso) {
       <div class="view active">
         <div class="main-header">
           <div><h1>{{ lesson.title }}</h1><p>Урок {{ lesson.order }}</p></div>
+          <button class="favorite-toggle" :class="{ active: isFavorite }" @click="toggleFavorite" :title="isFavorite ? 'Убрать из избранного' : 'В избранное'">
+            {{ isFavorite ? '★' : '☆' }}
+          </button>
           <button class="dl-btn" @click="router.push({ name: 'module', params: { id: lesson.module } })">← К списку уроков</button>
         </div>
         <div class="lesson-layout">

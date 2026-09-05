@@ -260,6 +260,22 @@
     .activity-item-top { display: flex; justify-content: space-between; gap: 12px; color: var(--text-hi); font-size: 12.5px; }
     .activity-item time, .activity-item > span { color: var(--text-dim); font-size: 11px; }
     .activity-modal { max-width: 720px; }
+    .favorites-card { grid-column: 2; }
+    .section-subtitle { color: var(--text-dim); font-size: 12px; margin: -4px 0 12px; }
+    .favorites-list { display: grid; gap: 8px; }
+    .favorite-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: transparent; color: var(--text-hi); text-align: left; cursor: pointer; }
+    .favorite-item:hover { border-color: var(--gold); background: var(--navy-soft); }
+    .favorite-play { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 7px; background: var(--navy-soft); color: var(--gold); font-size: 10px; }
+    .favorite-info { min-width: 0; flex: 1; }
+    .favorite-info strong, .favorite-info small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .favorite-info strong { font-size: 12.5px; }
+    .favorite-info small { color: var(--text-dim); font-size: 10.5px; margin-top: 2px; }
+    .favorite-star { color: var(--gold); }
+    .favorite-open { color: var(--gold); font-size: 11px; }
+    .empty-state { color: var(--text-dim); font-size: 12px; line-height: 1.5; }
+    .favorite-toggle { margin-left: auto; border: 0; background: transparent; color: var(--text-dim); font-size: 26px; cursor: pointer; line-height: 1; }
+    .favorite-toggle.active { color: var(--gold); }
+    @media (max-width: 900px) { .favorites-card { grid-column: auto; } }
     @media (max-width: 600px) { .course-timeline-top, .activity-item-top { display: block; } .badge-pill { display: inline-block; margin-top: 8px; } }
 
     .view { display: none; animation: fadeUp .3s ease; }

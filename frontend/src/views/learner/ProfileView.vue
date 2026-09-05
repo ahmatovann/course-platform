@@ -14,9 +14,11 @@ const coursesStore = useCoursesStore()
 const router = useRouter()
 
 const loadingCourses = ref(true)
+const favorites = ref([])
 onMounted(async () => {
   await auth.fetchProfile()
   if (coursesStore.courses.length === 0) await coursesStore.fetchCourses()
+  favorites.value = JSON.parse(localStorage.getItem('course_favorites') || '[]')
   loadingCourses.value = false
 })
 
@@ -260,6 +262,19 @@ function courseStatus(c) {
                 <button type="button" :class="{ active: ui.theme === 'light' }" @click="ui.setTheme('light')">Светлая</button>
               </div>
             </div>
+          </div>
+
+          <div class="mini-card favorites-card">
+            <h4>Избранное</h4>
+            <p class="section-subtitle">Уроки, которые вы отметили звёздочкой</p>
+            <div v-if="favorites.length" class="favorites-list">
+              <button v-for="item in favorites" :key="item.id" class="favorite-item" @click="router.push(`/lessons/${item.id}`)">
+                <span class="favorite-play">▶</span>
+                <span class="favorite-info"><strong>{{ item.title }}</strong><small>{{ item.course || 'Урок курса' }}</small></span>
+                <span class="favorite-star">★</span><span class="favorite-open">Открыть</span>
+              </button>
+            </div>
+            <p v-else class="empty-state">Пока нет избранных уроков. Отмечайте уроки звёздочкой, чтобы быстро возвращаться к ним.</p>
           </div>
         </div>
       </div>
