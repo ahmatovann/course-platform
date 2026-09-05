@@ -155,7 +155,7 @@ function courseStatus(c) {
 </script>
 
 <template>
-  <div class="app active">
+  <div class="app active profile-page">
     <Sidebar :links="links" />
     <main class="main">
       <div class="view active">

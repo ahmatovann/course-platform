@@ -53,7 +53,7 @@
     html { transition: var(--theme-transition); }
     body {
       font-family: var(--font-body);
-      background: radial-gradient(ellipse at top, var(--bg-grad-1) 0%, var(--bg-grad-2) 60%);
+      background: radial-gradient(ellipse at top, #f3f1ff 0%, #e9e7f8 60%);
       color: var(--text-hi);
       min-height: 100vh;
       transition: var(--theme-transition);
@@ -223,6 +223,7 @@
     .main-header p { color: var(--text-dim); font-size: 13px; margin-top: 4px; }
 
     .profile-grid { display: grid; grid-template-columns: minmax(320px, .9fr) minmax(420px, 1.1fr); gap: 20px; align-items: start; }
+    .profile-page .main { max-width: 1180px; }
     .profile-hero { min-height: 250px; }
     .profile-hero-top, .profile-avatar-row { display: flex; align-items: center; gap: 18px; }
     .profile-avatar-lg { width: 112px; height: 112px; border: 0; border-radius: 50%; overflow: hidden; flex: 0 0 112px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--gold), #8C6F3E); color: var(--on-accent); font-size: 30px; font-weight: 700; padding: 0; }
