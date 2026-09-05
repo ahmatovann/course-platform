@@ -224,6 +224,7 @@
 
     .profile-grid { display: grid; grid-template-columns: minmax(0, 780px); gap: 20px; align-items: start; max-width: 780px; }
     .profile-page .main { max-width: 920px; }
+    .profile-settings-card { border-color: var(--gold-soft); }
     .profile-hero { min-height: 250px; }
     .profile-hero-top, .profile-avatar-row { display: flex; align-items: center; gap: 18px; }
     .profile-avatar-column { display: flex; flex-direction: column; align-items: center; gap: 10px; flex: 0 0 112px; }

@@ -255,6 +255,17 @@ function courseStatus(c) {
             </template>
           </div>
 
+          <div class="mini-card profile-settings-card">
+            <h4>Настройки профиля</h4>
+            <div class="settings-row">
+              <div class="lbl">Тема интерфейса<small>Выберите оформление только для элементов профиля</small></div>
+              <div class="settings-switch">
+                <button type="button" :class="{ active: ui.theme === 'dark' }" @click="ui.setTheme('dark')">Тёмная</button>
+                <button type="button" :class="{ active: ui.theme === 'light' }" @click="ui.setTheme('light')">Светлая</button>
+              </div>
+            </div>
+          </div>
+
           <div class="mini-card">
             <h4>Мои курсы</h4>
             <div class="course-timeline" v-if="!loadingCourses">
@@ -277,17 +288,6 @@ function courseStatus(c) {
                 </div>
               </div>
               <p v-if="coursesStore.courses.length === 0" style="color:var(--text-dim); font-size:13px;">Курсы пока не назначены.</p>
-            </div>
-          </div>
-
-          <div class="mini-card">
-            <h4>Тема</h4>
-            <div class="settings-row">
-              <div class="lbl">Цветовая тема</div>
-              <div class="settings-switch">
-                <button type="button" :class="{ active: ui.theme === 'dark' }" @click="ui.setTheme('dark')">Тёмная</button>
-                <button type="button" :class="{ active: ui.theme === 'light' }" @click="ui.setTheme('light')">Светлая</button>
-              </div>
             </div>
           </div>
 
