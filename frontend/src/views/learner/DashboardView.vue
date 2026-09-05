@@ -33,7 +33,7 @@ onMounted(async () => {
     <main class="main">
       <div class="view active">
         <div class="main-header">
-          <div><h1>Мои тренинги</h1></div>
+          <div><h1>Мои тренинги</h1><p>{{ store.courses.length }} курс(ов) · прогресс синхронизируется автоматически</p></div>
         </div>
         <div class="grid" v-if="!loading">
           <div v-for="c in store.courses" :key="c.id" class="card"

@@ -12,21 +12,15 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'email', 'first_name', 'last_name', 'role', 'phone', 'avatar',
-            'avatar_emoji', 'background', 'phone_verified', 'country', 'city', 'birth_date',
-            'is_active_student', 'date_joined',
+            'phone_verified', 'country', 'city', 'birth_date', 'is_active_student', 'date_joined',
         ]
         read_only_fields = ['id', 'role', 'phone_verified', 'date_joined']
 
 
 class ProfileUpdateSerializer(serializers.ModelSerializer):
-    avatar_emoji = serializers.CharField(required=False, allow_blank=True, max_length=8)
-
     class Meta:
         model = User
-        fields = [
-            'first_name', 'last_name', 'country', 'city', 'avatar', 'avatar_emoji',
-            'background', 'phone', 'birth_date',
-        ]
+        fields = ['first_name', 'last_name', 'country', 'city', 'avatar', 'phone', 'birth_date']
 
 
 class ChangePasswordSerializer(serializers.Serializer):

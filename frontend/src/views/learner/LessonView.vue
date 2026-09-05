@@ -1,12 +1,11 @@
 <script setup>
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Sidebar from '../../components/common/Sidebar.vue'
 import { useCoursesStore } from '../../store/courses'
 import { useUiStore } from '../../store/ui'
 import { useAuthStore } from '../../store/auth'
 import { iconForKind } from '../../utils/fileKind'
-import { embedVideoUrl } from '../../utils/videoEmbed'
 
 import { learnerLinks as links } from '../../nav'
 
@@ -16,7 +15,6 @@ const store = useCoursesStore()
 const ui = useUiStore()
 const auth = useAuthStore()
 const lesson = ref(null)
-const embedUrl = computed(() => (lesson.value ? embedVideoUrl(lesson.value.video_url) : null))
 const draft = ref('')
 const commentsEl = ref(null)
 const videoEl = ref(null)
@@ -24,24 +22,6 @@ const isMuted = ref(false)
 const volumeLevel = ref(1)
 const attachedTimestamp = ref(null)
 let alreadyMarking = false
-
-// Видео урока — это либо собственный файл урока (video_file), либо, если
-// его нет, первое видео среди прикреплённых материалов (админ мог добавить
-// видео через «Материалы», а не как основной файл урока). Раньше такое
-// видео просто лежало в общем списке файлов ссылкой «Смотреть», открывающей
-// файл в новой вкладке, без проигрывателя — теперь оно показывается прямо
-// в плеере, как и должно.
-const mainVideo = computed(() => {
-  if (!lesson.value) return null
-  if (lesson.value.video_file) {
-    return { src: lesson.value.video_file, poster: lesson.value.video_poster || null }
-  }
-  const material = (lesson.value.materials || []).find((m) => m.kind === 'video' && m.file)
-  return material ? { src: material.file, poster: null } : null
-})
-
-// Остальные файлы урока — видео среди них не показываем: оно уже в плеере выше.
-const otherMaterials = computed(() => (lesson.value?.materials || []).filter((m) => m.kind !== 'video'))
 
 function attachCurrentMoment() {
   const v = videoEl.value
@@ -158,10 +138,10 @@ function formatTime(iso) {
         </div>
         <div class="lesson-layout">
           <div>
-            <div class="player-box" v-if="mainVideo">
+            <div class="player-box" v-if="lesson.video_file">
               <video
-                ref="videoEl" :key="mainVideo.src"
-                :src="mainVideo.src" :poster="mainVideo.poster || undefined"
+                ref="videoEl"
+                :src="lesson.video_file" :poster="lesson.video_poster || undefined"
                 controls controlsList="nodownload" style="width:100%; height:100%; display:block;"
                 @ended="onVideoEnded" @timeupdate="onTimeUpdate" @volumechange="onVolumeChange"
               ></video>
@@ -172,13 +152,6 @@ function formatTime(iso) {
               <div class="video-watermark" aria-hidden="true">
                 <span v-for="n in 6" :key="n">{{ auth.user?.email }}</span>
               </div>
-            </div>
-            <div v-else-if="embedUrl" class="player-box">
-              <iframe
-                :src="embedUrl" style="width:100%; height:100%; display:block; border:0;"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowfullscreen @load="markWatchedAuto"
-              ></iframe>
             </div>
             <a v-else-if="lesson.video_url" :href="lesson.video_url" target="_blank" class="player-box" style="text-decoration:none;" @click="markWatchedAuto">
               <div class="play-btn">▶</div>
@@ -195,15 +168,15 @@ function formatTime(iso) {
 
             <p class="lesson-description" v-if="lesson.description">{{ lesson.description }}</p>
 
-            <div class="materials-box" v-if="otherMaterials.length">
+            <div class="materials-box" v-if="lesson.materials?.length">
               <h4>Материалы урока</h4>
-              <div class="material-row" v-for="m in otherMaterials" :key="m.id">
+              <div class="material-row" v-for="m in lesson.materials" :key="m.id">
                 <div class="type-icon">{{ iconForKind(m.kind) }}</div><div class="name">{{ m.name }}</div>
                 <button
                   type="button" class="material-fav-btn" :class="{ active: m.is_favorite }"
                   @click="store.toggleMaterialFavorite(m)" :title="m.is_favorite ? 'Убрать из избранного' : 'В избранное'"
                 >{{ m.is_favorite ? '★' : '☆' }}</button>
-                <a class="dl" :href="m.file" target="_blank">Открыть</a>
+                <a class="dl" :href="m.file" target="_blank">Смотреть</a>
               </div>
             </div>
 
@@ -225,7 +198,7 @@ function formatTime(iso) {
                 </div>
                 <p v-if="store.lessonComments.length === 0" style="color:var(--text-dim); font-size:12.5px;">Комментариев пока нет.</p>
               </div>
-              <div class="comment-attach-row" v-if="mainVideo">
+              <div class="comment-attach-row" v-if="lesson.video_file">
                 <button v-if="attachedTimestamp == null" type="button" class="comment-attach-btn" @click="attachCurrentMoment">
                   ▶ Привязать текущий момент видео
                 </button>

@@ -6,6 +6,11 @@ from .models import (
 )
 
 
+class MaterialInline(admin.TabularInline):
+    model = Material
+    extra = 0
+
+
 class LessonInline(admin.TabularInline):
     model = Lesson
     extra = 0
@@ -45,12 +50,7 @@ class ModuleAdmin(admin.ModelAdmin):
 class LessonAdmin(admin.ModelAdmin):
     list_display = ('title', 'module', 'order', 'duration_seconds')
     list_filter = ('module__course', 'module')
-
-
-@admin.register(Material)
-class MaterialAdmin(admin.ModelAdmin):
-    list_display = ('name', 'kind', 'lesson')
-    list_filter = ('lesson__module__course',)
+    inlines = [MaterialInline]
 
 
 @admin.register(Test)

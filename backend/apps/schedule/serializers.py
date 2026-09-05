@@ -57,5 +57,5 @@ class ScheduleEventWriteSerializer(serializers.ModelSerializer):
         hide_at = attrs.get('hide_at')
         publish_at = attrs.get('publish_at', getattr(self.instance, 'publish_at', None))
         if hide_at and publish_at and hide_at <= publish_at:
-            raise serializers.ValidationError({'hide_at': 'Дата и время скрытия должны быть позже даты и времени рассылки'})
+            raise serializers.ValidationError({'hide_at': 'Дата скрытия должна быть позже даты рассылки'})
         return attrs
