@@ -1,0 +1,6 @@
+models:
+  - title: OmniRoute
+    provider: openai
+    model: auto
+    apiBase: http://localhost:20128/v1
+    apiKey: sk-d24be92079e2bf4b-8b3d57-e8bd4873
