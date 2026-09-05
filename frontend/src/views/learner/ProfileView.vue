@@ -70,6 +70,7 @@ function onAvatarChosen(e) {
   }
   pendingAvatarFile.value = file
   avatarPreview.value = URL.createObjectURL(file)
+  if (!isEditing.value) saveAvatarOnly(file)
 }
 
 // Бесплатные сгенерированные аватарки через DiceBear (без ключей и регистрации).
@@ -87,10 +88,27 @@ async function generateAvatar() {
     const file = new File([blob], `avatar-${seed}.png`, { type: 'image/png' })
     pendingAvatarFile.value = file
     avatarPreview.value = URL.createObjectURL(blob)
+    if (!isEditing.value) await saveAvatarOnly(file)
   } catch (e) {
     ui.showToast('Не удалось сгенерировать аватар — проверьте интернет', 'error')
   } finally {
     generatingAvatar.value = false
+  }
+}
+
+async function saveAvatarOnly(file) {
+  saving.value = true
+  try {
+    const payload = new FormData()
+    payload.append('avatar', file)
+    await auth.updateProfile(payload)
+    pendingAvatarFile.value = null
+    avatarPreview.value = auth.user?.avatar || avatarPreview.value
+    ui.showToast('Аватар обновлён', 'success')
+  } catch (e) {
+    ui.showToast('Не удалось сохранить аватар', 'error')
+  } finally {
+    saving.value = false
   }
 }
 
@@ -167,14 +185,23 @@ function courseStatus(c) {
 
             <template v-if="!isEditing">
               <div class="profile-hero-top">
-                <button
-                  type="button" class="profile-avatar-lg" :class="{ clickable: avatarPreview }"
-                  @click="avatarPreview && (showAvatarLightbox = true)"
-                  :aria-label="avatarPreview ? 'Посмотреть фото' : undefined"
-                >
-                  <img v-if="avatarPreview" :src="avatarPreview" alt="">
-                  <span v-else>{{ initials }}</span>
-                </button>
+                <div class="profile-avatar-column">
+                  <button
+                    type="button" class="profile-avatar-lg" :class="{ clickable: avatarPreview }"
+                    @click="avatarPreview && (showAvatarLightbox = true)"
+                    :aria-label="avatarPreview ? 'Посмотреть фото' : undefined"
+                  >
+                    <img v-if="avatarPreview" :src="avatarPreview" alt="">
+                    <span v-else>{{ initials }}</span>
+                  </button>
+                  <input ref="avatarInput" type="file" accept="image/*" style="display:none" @change="onAvatarChosen">
+                  <div class="profile-avatar-links">
+                    <button type="button" class="avatar-action-btn" :disabled="saving" @click="pickAvatar">Загрузить фото</button>
+                    <button type="button" class="avatar-action-btn" :disabled="generatingAvatar || saving" @click="generateAvatar">
+                      {{ generatingAvatar ? 'Генерируем...' : 'Сгенерировать' }}
+                    </button>
+                  </div>
+                </div>
                 <div class="profile-hero-info">
                   <h2>{{ fullName }}</h2>
                   <div class="profile-info-row"><span>Дата регистрации:</span> {{ formatDate(auth.user?.date_joined) }}</div>
@@ -193,7 +220,6 @@ function courseStatus(c) {
                   <img v-if="avatarPreview" :src="avatarPreview" alt="">
                   <span v-else>{{ initials }}</span>
                 </div>
-                <input ref="avatarInput" type="file" accept="image/*" style="display:none" @change="onAvatarChosen">
                 <div class="profile-avatar-links">
                   <button type="button" class="avatar-action-btn" @click="pickAvatar">Загрузить фото</button>
                   <button type="button" class="avatar-action-btn" :disabled="generatingAvatar" @click="generateAvatar">
