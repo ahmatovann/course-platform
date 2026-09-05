@@ -170,6 +170,7 @@ function courseStatus(c) {
   if (c.progress_percent > 0) return { label: `В процессе · ${c.progress_percent}%`, cls: 'progress' }
   return { label: 'Не начат', cls: 'todo' }
 }
+
 </script>
 
 <template>
@@ -302,6 +303,7 @@ function courseStatus(c) {
             </div>
             <p v-else class="empty-state">Пока нет избранных уроков. Отмечайте уроки звёздочкой, чтобы быстро возвращаться к ним.</p>
           </div>
+
         </div>
       </div>
     </main>
