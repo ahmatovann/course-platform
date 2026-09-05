@@ -122,6 +122,14 @@ class StudentActivityView(generics.ListAPIView):
         return StudentActivity.objects.filter(student_id=self.kwargs['pk']).select_related('actor')
 
 
+class AdminActivityView(generics.ListAPIView):
+    serializer_class = StudentActivitySerializer
+    permission_classes = [IsAdmin]
+
+    def get_queryset(self):
+        return StudentActivity.objects.filter(actor=self.request.user).select_related('student', 'actor')
+
+
 class DeleteStudentView(APIView):
     permission_classes = [IsAdmin]
 

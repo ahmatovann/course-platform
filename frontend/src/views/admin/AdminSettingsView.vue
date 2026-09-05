@@ -17,6 +17,7 @@ const avatarPreview = ref(auth.user?.avatar || null)
 const generatingAvatar = ref(false)
 const savingAvatar = ref(false)
 const showAvatarLightbox = ref(false)
+const adminActivity = ref([])
 
 function pickAvatar() {
   avatarInput.value?.click()
@@ -76,8 +77,13 @@ let debounceTimer = null
 onMounted(async () => {
   await auth.fetchProfile()
   avatarPreview.value = auth.user?.avatar || null
+  adminActivity.value = await admin.fetchAdminActivity()
   await load()
 })
+
+function formatActivityDate(value) {
+  return new Date(value).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
 
 watch([search, sortBy], () => {
   if (debounceTimer) clearTimeout(debounceTimer)
@@ -183,6 +189,18 @@ async function removeItem(item) {
               <button type="button" :class="{ active: ui.theme === 'light' }" @click="ui.setTheme('light')">Светлая</button>
             </div>
           </div>
+        </div>
+
+        <div class="mini-card admin-history-card">
+          <h4>История действий</h4>
+          <p class="section-subtitle">Действия администратора по ученикам и курсам</p>
+          <div class="admin-history-table" v-if="adminActivity.length">
+            <div class="admin-history-row admin-history-head"><span>Когда</span><span>Действие</span></div>
+            <div class="admin-history-row" v-for="item in adminActivity" :key="item.id">
+              <time>{{ formatActivityDate(item.created_at) }}</time><span>{{ item.description }}</span>
+            </div>
+          </div>
+          <p v-else class="empty-state">История пока пуста.</p>
         </div>
 
         <div v-if="false" class="mini-card" style="margin-top:20px;">
