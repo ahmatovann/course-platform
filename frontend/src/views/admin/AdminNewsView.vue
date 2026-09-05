@@ -52,8 +52,10 @@ const sortedItems = computed(() => {
 })
 
 // input type="datetime-local" ожидает строку в локальном времени без
-// таймзоны (YYYY-MM-DDTHH:mm) — toISOString() тут не подходит, он в UTC.
-function toLocalDatetimeInput(date) {
+// таймзоны (YYYY-MM-DDTHH:mm), поэтому форматируем Date/ISO вручную.
+function toLocalInput(value) {
+  if (!value) return ''
+  const date = value instanceof Date ? value : new Date(value)
   const pad = (n) => String(n).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
@@ -65,7 +67,7 @@ function openCreate() {
   form.link_url = ''
   // Дата и время рассылки по умолчанию — сейчас (новость публикуется
   // сразу), администратор при необходимости переносит на будущее.
-  form.publish_at = toLocalDatetimeInput(new Date())
+  form.publish_at = toLocalInput(new Date())
   form.hide_at = ''
   form.course = null
   showModal.value = true
@@ -76,8 +78,8 @@ function openEdit(n) {
   form.title = n.title
   form.description = n.description || ''
   form.link_url = n.link_url || ''
-  form.publish_at = toLocalDatetimeInput(new Date(n.publish_at))
-  form.hide_at = n.hide_at ? toLocalDatetimeInput(new Date(n.hide_at)) : ''
+  form.publish_at = toLocalInput(n.publish_at)
+  form.hide_at = n.hide_at ? toLocalInput(n.hide_at) : ''
   form.course = n.course
   showModal.value = true
 }
@@ -93,9 +95,9 @@ function normalizeLink(url) {
 }
 
 async function save() {
-  if (!form.title.trim() || !form.publish_at) { ui.showToast('Укажите название и дату рассылки', 'error'); return }
+  if (!form.title.trim() || !form.publish_at) { ui.showToast('Укажите название, дату и время рассылки', 'error'); return }
   if (form.hide_at && form.hide_at <= form.publish_at) {
-    ui.showToast('Дата скрытия должна быть позже даты рассылки', 'error')
+    ui.showToast('Дата и время скрытия должны быть позже даты и времени рассылки', 'error')
     return
   }
   const payload = {
@@ -159,7 +161,7 @@ function excerpt(text) {
           </select>
         </div>
         <table>
-          <thead><tr><th>Дата рассылки</th><th>Скрыть после</th><th>Статус</th><th>Новость</th><th>Описание</th><th>Ссылка</th><th>Тренинг</th><th></th></tr></thead>
+          <thead><tr><th>Дата и время рассылки</th><th>Скрыть после</th><th>Статус</th><th>Новость</th><th>Описание</th><th>Ссылка</th><th>Тренинг</th><th></th></tr></thead>
           <tbody>
             <tr v-for="n in sortedItems" :key="n.id">
               <td>{{ formatDate(n.publish_at) }}</td>
@@ -192,7 +194,7 @@ function excerpt(text) {
         <div class="field"><label>Название</label><input v-model="form.title" placeholder="Открытие урока «Скулы и контуринг»"></div>
         <div class="field">
           <label>Описание</label>
-          <textarea v-model="form.description" rows="4" placeholder="Подробности новости — если важно время, укажите его прямо здесь в тексте (например «в 18:00»)"></textarea>
+          <textarea v-model="form.description" rows="4" placeholder="Подробности новости — необязательно"></textarea>
         </div>
         <div class="field"><label>Ссылка (необязательно)</label><input type="url" v-model="form.link_url" placeholder="https://..."></div>
         <div class="field">

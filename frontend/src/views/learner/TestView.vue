@@ -14,6 +14,7 @@ const ui = useUiStore()
 const test = ref(null)
 const answers = reactive({})
 const result = ref(null)
+const submitting = ref(false)
 
 onMounted(async () => {
   test.value = await store.fetchTest(route.params.id)
@@ -24,16 +25,26 @@ function choose(qId, optId) {
 }
 
 async function submit() {
+  if (submitting.value) return
   if (Object.keys(answers).length < test.value.questions.length) {
     ui.showToast('Ответьте на все вопросы', 'error')
     return
   }
-  result.value = await store.submitTest(test.value.id, answers)
-  if (result.value.passed) {
-    ui.showToast(`Тест сдан на ${result.value.score_percent}%! Следующий модуль открыт.`, 'success')
-    router.push('/')
-  } else {
-    ui.showToast(`Тест не сдан: ${result.value.score_percent}% (нужно больше)`, 'error')
+  submitting.value = true
+  try {
+    result.value = await store.submitTest(test.value.id, answers)
+    if (result.value.passed) {
+      ui.showToast(`Тест сдан на ${result.value.score_percent}%! Следующий модуль открыт.`, 'success')
+      router.push('/')
+    } else {
+      ui.showToast(`Тест не сдан: ${result.value.score_percent}% (нужно больше)`, 'error')
+    }
+  } catch (error) {
+    const data = error.response?.data || {}
+    const message = data.detail || Object.values(data).flat().join(' ') || 'Не удалось завершить тест'
+    ui.showToast(message, 'error')
+  } finally {
+    submitting.value = false
   }
 }
 </script>
@@ -44,7 +55,13 @@ async function submit() {
     <main class="main">
       <div class="view active">
         <div class="main-header">
-          <div><h1>{{ test.title }}</h1><p>Выберите один вариант ответа на каждый вопрос</p></div>
+          <div>
+            <h1>{{ test.title }}</h1>
+            <p v-if="test.require_lessons_watched && test.lessons_watched < test.lessons_total">
+              Сначала просмотрите уроки: {{ test.lessons_watched }} из {{ test.lessons_total }}
+            </p>
+            <p v-else>Выберите один вариант ответа на каждый вопрос</p>
+          </div>
           <button class="dl-btn" @click="router.back()">← Назад</button>
         </div>
         <div class="test-box">
@@ -54,7 +71,9 @@ async function submit() {
               <input type="radio" :name="'q' + q.id" @change="choose(q.id, o.id)">{{ o.text }}
             </label>
           </div>
-          <button class="btn-primary" style="max-width:220px" @click="submit">Завершить тест</button>
+          <button class="btn-primary" style="max-width:220px" :disabled="submitting" @click="submit">
+            {{ submitting ? 'Отправка...' : 'Завершить тест' }}
+          </button>
         </div>
       </div>
     </main>

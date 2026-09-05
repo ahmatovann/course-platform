@@ -6,8 +6,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsAdmin
-from apps.accounts.utils import generate_password, send_welcome_email
+from apps.accounts.utils import (
+    generate_password, send_welcome_email, deactivate_expired_students,
+    send_access_expiry_reminders, period_to_timedelta,
+)
 from apps.courses.models import Course, Enrollment
+from django.utils import timezone
 
 from .models import log_action, AuditLogEntry
 from .serializers import StudentSerializer, CreateStudentSerializer, AuditLogEntrySerializer
@@ -24,6 +28,13 @@ class StudentListView(generics.ListAPIView):
     permission_classes = [IsAdmin]
 
     def get_queryset(self):
+        # Перед каждым просмотром списка учеников — деактивируем тех, у
+        # кого истёк выбранный администратором срок доступа, чтобы статус
+        # «Активен/Не активен» всегда был актуальным без отдельного
+        # фонового планировщика (его в проекте нет).
+        deactivate_expired_students()
+        send_access_expiry_reminders()
+
         qs = User.objects.filter(role=User.Role.STUDENT).order_by('-date_joined')
         search = self.request.query_params.get('search', '').strip()
         if search:
@@ -63,10 +74,16 @@ class CreateStudentView(APIView):
         last_name = name_parts[1] if len(name_parts) > 1 else ''
 
         password = generate_password()
+        # Срок доступа — администратор сам выбрал количество и единицу
+        # (день/неделя/месяц) в форме создания ученика.
+        access_expires_at = timezone.now() + period_to_timedelta(
+            data.get('access_amount', 3), data.get('access_unit', 'month'),
+        )
         user = User.objects.create_user(
             username=data['email'], email=data['email'], password=password,
             first_name=first_name, last_name=last_name, phone=data.get('phone', ''),
             role=User.Role.STUDENT, must_change_password=True,
+            access_expires_at=access_expires_at,
         )
         course = data.get('course_id')
         if course:
@@ -100,6 +117,15 @@ class ToggleStudentStatusView(APIView):
         return Response(StudentSerializer(user).data)
 
 
+class DeleteStudentView(APIView):
+    permission_classes = [IsAdmin]
+
+    def delete(self, request, pk):
+        student = get_object_or_404(User, pk=pk, role=User.Role.STUDENT)
+        student.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class StudentEnrollView(APIView):
     """Записать ученика на дополнительный тренинг или снять с него.
     Без ограничений по количеству — можно одновременно иметь доступ
@@ -120,6 +146,31 @@ class StudentEnrollView(APIView):
         Enrollment.objects.filter(user=student, course_id=course_id).delete()
         log_action(request, 'deleted', 'запись на курс', f'{student.first_name} {student.last_name} ← «{course.title if course else course_id}»')
         return Response(StudentSerializer(student).data)
+
+
+class StudentExtendAccessView(APIView):
+    """Продлить доступ ученика на период, который выбирает администратор:
+    количество (amount) и единица измерения (unit — 'day'/'week'/'month').
+    Продление отсчитывается от текущего момента и сразу возвращает статус
+    «Активен» (даже если доступ уже истёк и был автоматически закрыт —
+    см. deactivate_expired_students)."""
+    permission_classes = [IsAdmin]
+
+    def post(self, request, pk):
+        user = User.objects.filter(pk=pk, role=User.Role.STUDENT).first()
+        if not user:
+            return Response({'detail': 'Не найден'}, status=404)
+
+        amount = request.data.get('amount', 3)
+        unit = request.data.get('unit', 'month')
+        if unit not in ('day', 'week', 'month'):
+            return Response({'detail': 'Единица должна быть day, week или month'}, status=400)
+
+        user.access_expires_at = timezone.now() + period_to_timedelta(amount, unit)
+        user.is_active_student = True
+        user.is_active = True
+        user.save(update_fields=['access_expires_at', 'is_active_student', 'is_active'])
+        return Response(StudentSerializer(user).data)
 
 
 # ===== Конструктор тренинга (курсы/модули/уроки) =====
@@ -146,6 +197,15 @@ class AdminCourseListView(drf_generics.ListAPIView):
         if search:
             qs = qs.filter(Q(title__icontains=search) | Q(description__icontains=search))
         return qs
+
+
+class AdminCourseDeleteView(APIView):
+    permission_classes = [IsAdmin]
+
+    def delete(self, request, pk):
+        course = get_object_or_404(Course, pk=pk)
+        course.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class AdminModuleUpdateView(APIView):
@@ -374,7 +434,10 @@ class ModuleCompletionStatsView(APIView):
 
 from django.http import FileResponse  # noqa: E402
 
-from .exports import export_student_progress_xlsx, export_students_xlsx  # noqa: E402
+from .exports import (
+    export_student_progress_xlsx, export_student_progress_pdf,
+    export_students_pdf, export_students_xlsx,
+)  # noqa: E402
 
 XLSX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
@@ -401,6 +464,33 @@ class StudentProgressExportView(APIView):
         return FileResponse(buffer, as_attachment=True, filename=filename, content_type=XLSX_CONTENT_TYPE)
 
 
+class StudentProgressPdfExportView(StudentProgressExportView):
+    def get(self, request, pk):
+        from apps.courses.models import TestAttempt
+
+        student = get_object_or_404(User, pk=pk, role='student')
+        courses = _Course.objects.filter(enrollments__user=student).prefetch_related(
+            'modules__lessons', 'modules__test'
+        ).distinct()
+        courses_data = []
+        for course in courses:
+            modules_data = []
+            for module in course.modules.all().order_by('order'):
+                status_data = module_status(student, module)
+                test = getattr(module, 'test', None)
+                attempts = list(TestAttempt.objects.filter(user=student, test=test).values(
+                    'score_percent', 'passed', 'submitted_at',
+                )) if test else []
+                modules_data.append({**status_data, 'title': module.title, 'test_attempts': attempts})
+            courses_data.append({'course_title': course.title, 'modules': modules_data})
+
+        buffer = export_student_progress_pdf(student, courses_data)
+        return FileResponse(
+            buffer, as_attachment=True, filename=f'progress-{student.email}.pdf',
+            content_type='application/pdf',
+        )
+
+
 class StudentsExportView(APIView):
     permission_classes = [IsAdmin]
 
@@ -410,6 +500,15 @@ class StudentsExportView(APIView):
         )
         buffer = export_students_xlsx(students)
         return FileResponse(buffer, as_attachment=True, filename='students.xlsx', content_type=XLSX_CONTENT_TYPE)
+
+
+class StudentsPdfExportView(StudentsExportView):
+    def get(self, request):
+        students = User.objects.filter(role=User.Role.STUDENT).order_by('-date_joined').prefetch_related(
+            'enrollments__course'
+        )
+        buffer = export_students_pdf(students)
+        return FileResponse(buffer, as_attachment=True, filename='students.pdf', content_type='application/pdf')
 
 
 # ===== Материалы урока (слайды, аудио, PDF и т.д.) =====
@@ -429,12 +528,64 @@ class AdminMaterialCreateView(APIView):
         return Response(AdminMaterialSerializer(material).data, status=status.HTTP_201_CREATED)
 
 
+class AdminMaterialLibraryCreateView(APIView):
+    """Загрузить материал сразу в раздел «Материалы», ещё не привязывая
+    его ни к одному уроку — отдельно от AdminMaterialCreateView, которая
+    всегда требует урок. Такой материал потом можно прикрепить к уроку
+    через AdminMaterialAttachView."""
+    permission_classes = [IsAdmin]
+
+    def post(self, request):
+        serializer = AdminMaterialWriteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        material = serializer.save(lesson=None)
+        return Response(AdminMaterialSerializer(material).data, status=status.HTTP_201_CREATED)
+
+
+class AdminMaterialAttachView(APIView):
+    """Прикрепить к уроку уже загруженный ранее файл (материал из раздела
+    «Материалы» ИЛИ видео другого урока) вместо повторной загрузки того же
+    файла заново — ссылается на тот же физический файл, без копирования.
+
+    Принимает media_id в том же формате, что отдаёт AdminMediaListView —
+    'material-<id>' или 'video-<id>' (можно взять прямо из поля item.id
+    списка /admin/media/)."""
+    permission_classes = [IsAdmin]
+
+    def post(self, request, lesson_id):
+        lesson = get_object_or_404(Lesson, pk=lesson_id)
+        media_id = str(request.data.get('media_id') or '').strip()
+        if not media_id and request.data.get('material_id'):
+            media_id = f"material-{request.data.get('material_id')}"
+
+        if media_id.startswith('material-'):
+            source = get_object_or_404(Material, pk=media_id.split('-', 1)[1])
+            material = Material.objects.create(
+                lesson=lesson, name=source.name, file=source.file.name, kind=source.kind,
+            )
+        elif media_id.startswith('video-'):
+            source_lesson = get_object_or_404(Lesson, pk=media_id.split('-', 1)[1])
+            if not source_lesson.video_file:
+                return Response({'detail': 'У этого урока нет видео'}, status=status.HTTP_400_BAD_REQUEST)
+            lesson.video_file.name = source_lesson.video_file.name
+            lesson.duration_seconds = source_lesson.duration_seconds
+            lesson.save(update_fields=['video_file', 'duration_seconds'])
+            from apps.courses.media_utils import ensure_lesson_audio
+            ensure_lesson_audio(lesson)
+            return Response(AdminLessonSerializer(lesson).data, status=status.HTTP_201_CREATED)
+        else:
+            return Response({'detail': 'Некорректный идентификатор файла'}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(AdminMaterialSerializer(material).data, status=status.HTTP_201_CREATED)
+
+
 class AdminMaterialDeleteView(APIView):
     permission_classes = [IsAdmin]
 
     def patch(self, request, pk):
         """Переименовать материал (и/или заменить сам файл) — используется
-        из библиотеки материалов в админке."""
+        из библиотеки материалов в админке. Меняет общую запись сразу везде,
+        где материал используется."""
         material = get_object_or_404(Material, pk=pk)
         serializer = AdminMaterialWriteSerializer(material, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -442,6 +593,9 @@ class AdminMaterialDeleteView(APIView):
         return Response(AdminMaterialSerializer(material).data)
 
     def delete(self, request, pk):
+        """Удалить материал совсем — из библиотеки и из всех уроков, где он
+        был прикреплён. Именно это действие вызывается из раздела
+        «Материалы» (там же стоит подтверждение)."""
         material = get_object_or_404(Material, pk=pk)
         material.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -578,46 +732,76 @@ class AdminMediaListView(APIView):
             Lesson.objects.exclude(video_file='').filter(video_file__isnull=False)
             .select_related('module__course')
         )
-        for lesson in lessons:
-            module = lesson.module
-            course = module.course
-            items.append({
-                'id': f'video-{lesson.id}',
-                'type': 'video',
-                'kind_label': 'Видео',
-                'name': lesson.title,
-                'thumb': request.build_absolute_uri(lesson.video_poster.url) if lesson.video_poster else None,
-                'size_bytes': _file_size(lesson.video_file),
-                'used_in': f'{course.title} → {module.title} → {lesson.title}',
-                'course_id': course.id,
-                'module_id': module.id,
-                'lesson_id': lesson.id,
-                'url': request.build_absolute_uri(lesson.video_file.url),
-                'duration_seconds': lesson.duration_seconds,
-            })
-
-        materials = (
-            Material.objects.exclude(file='').filter(file__isnull=False)
+        material_rows = list(
+            Material.objects.filter(kind='video').exclude(file='').filter(file__isnull=False)
             .select_related('lesson__module__course')
         )
-        for material in materials:
-            lesson = material.lesson
-            module = lesson.module
-            course = module.course
+
+        def usages(file_name):
+            result = []
+            for used_lesson in lessons:
+                if used_lesson.video_file.name == file_name:
+                    result.append(f'{used_lesson.module.course.title} → {used_lesson.module.title} → {used_lesson.title}')
+            for used_material in material_rows:
+                if used_material.file.name == file_name and used_material.lesson:
+                    result.append(
+                        f'{used_material.lesson.module.course.title} → '
+                        f'{used_material.lesson.module.title} → {used_material.lesson.title}'
+                    )
+            return list(dict.fromkeys(result))
+
+        def usage_count(file_name):
+            count = sum(1 for used_lesson in lessons if used_lesson.video_file.name == file_name)
+            count += sum(
+                1 for used_material in material_rows
+                if used_material.file.name == file_name and used_material.lesson
+            )
+            return count
+
+        video_groups = {}
+        for lesson in lessons:
+            video_groups.setdefault(lesson.video_file.name, {'lesson': lesson, 'material': None})
+        for material in material_rows:
+            group = video_groups.setdefault(material.file.name, {'lesson': None, 'material': material})
+            if group['material'] is None:
+                group['material'] = material
+
+        for file_name, group in video_groups.items():
+            lesson = group['lesson']
+            material = group['material']
+            source = lesson or material
+            source_file = lesson.video_file if lesson else material.file
+            source_name = lesson.title if lesson else material.name
+            used_places = usages(file_name)
+            if lesson:
+                module = lesson.module
+                course = module.course
+                used_in = f'{course.title} → {module.title} → {lesson.title}'
+                source_id = f'video-{lesson.id}'
+                source_fields = {
+                    'course_id': course.id, 'module_id': module.id, 'lesson_id': lesson.id,
+                }
+            else:
+                used_in = 'В библиотеке — не прикреплено к уроку'
+                source_id = f'material-{material.id}'
+                source_fields = {
+                    'course_id': None, 'module_id': None, 'lesson_id': None,
+                    'material_id': material.id,
+                }
             items.append({
-                'id': f'material-{material.id}',
-                'type': 'material',
-                'kind_label': MEDIA_KIND_LABELS.get(material.kind, 'Файл'),
-                'name': material.name,
-                'thumb': request.build_absolute_uri(material.file.url) if material.kind == 'image' else None,
-                'size_bytes': _file_size(material.file),
-                'used_in': f'{course.title} → {module.title} → {lesson.title}',
-                'course_id': course.id,
-                'module_id': module.id,
-                'lesson_id': lesson.id,
-                'material_id': material.id,
-                'url': request.build_absolute_uri(material.file.url),
-                'file_kind': material.kind,
+                'id': source_id,
+                'type': 'video',
+                'kind_label': 'Видео',
+                'name': source_name,
+                'thumb': request.build_absolute_uri(lesson.video_poster.url) if lesson and lesson.video_poster else None,
+                'size_bytes': _file_size(source_file),
+                'used_in': used_in,
+                **source_fields,
+                'url': request.build_absolute_uri(source_file.url),
+                'file_kind': 'video',
+                'duration_seconds': lesson.duration_seconds if lesson else 0,
+                'usage_count': usage_count(file_name),
+                'usage_places': used_places,
             })
 
         if search:

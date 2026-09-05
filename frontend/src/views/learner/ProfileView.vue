@@ -191,7 +191,7 @@ function courseStatus(c) {
     <Sidebar :links="links" />
     <main class="main">
       <div class="view active">
-        <div class="main-header"><div><h1>Профиль</h1><p>Email закреплён администратором</p></div></div>
+        <div class="main-header"><div><h1>Профиль</h1></div></div>
 
         <div class="profile-grid">
           <div class="mini-card profile-hero">
@@ -286,9 +286,9 @@ function courseStatus(c) {
           </div>
 
           <div class="mini-card">
-            <h4>Настройки</h4>
+            <h4>Тема</h4>
             <div class="settings-row">
-              <div class="lbl">Оформление<small>Тёмная или светлая тема интерфейса</small></div>
+              <div class="lbl">Цветовая тема</div>
               <div class="settings-switch">
                 <button type="button" :class="{ active: ui.theme === 'dark' }" @click="ui.setTheme('dark')">Тёмная</button>
                 <button type="button" :class="{ active: ui.theme === 'light' }" @click="ui.setTheme('light')">Светлая</button>

@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import Sidebar from '../../components/common/Sidebar.vue'
 import { useAdminStore } from '../../store/admin'
 import { useUiStore } from '../../store/ui'
@@ -16,6 +16,11 @@ const showLessonModal = ref(false)
 const lessonForm = reactive({ id: null, moduleId: null, title: '', description: '', video_url: '', video_file: '', duration_seconds: 0, materials: [] })
 const videoFile = ref(null)
 const materialForm = reactive({ name: '', file: null })
+// Прикрепить урок можно новым файлом или уже существующим из раздела
+// «Материалы» (или видео другого урока) — без повторной загрузки.
+const materialSource = ref('upload') // 'upload' | 'library'
+const libraryPickId = ref('')
+const libraryOptions = computed(() => admin.media.filter((item) => item.type === 'video' || item.type === 'material'))
 
 const showCourseModal = ref(false)
 const courseForm = reactive({ title: '', description: '' })
@@ -28,7 +33,17 @@ function toggleModule(id) {
   expandedModuleId.value = expandedModuleId.value === id ? null : id
 }
 
-onMounted(() => admin.fetchAdminCourses())
+function lessonVideoLabel(lesson) {
+  const hasAttachedVideo = (lesson.materials || []).some((material) => material.kind === 'video')
+  if (lesson.video_file || hasAttachedVideo) return 'видео загружено'
+  if (lesson.video_url) return 'ссылка на видео'
+  return 'без видео'
+}
+
+onMounted(() => {
+  admin.fetchAdminCourses()
+  admin.fetchMedia()
+})
 
 watch(search, () => {
   if (debounceTimer) clearTimeout(debounceTimer)
@@ -49,6 +64,8 @@ async function saveModule(m) {
 function resetMaterialForm() {
   materialForm.name = ''
   materialForm.file = null
+  materialSource.value = 'upload'
+  libraryPickId.value = ''
 }
 
 function openAddLesson(moduleId) {
@@ -194,6 +211,22 @@ async function removeMaterial(id) {
   refreshLessonMaterials(lessonForm.id)
 }
 
+// Прикрепить к уроку уже загруженный материал/видео из раздела
+// «Материалы» вместо повторной загрузки того же файла.
+async function attachFromLibrary() {
+  if (!libraryPickId.value) { ui.showToast('Выберите материал из списка', 'error'); return }
+  const lessonId = await ensureLessonId()
+  if (!lessonId) return
+  try {
+    await admin.attachMaterial(lessonId, libraryPickId.value)
+    ui.showToast('Материал прикреплён', 'success')
+    libraryPickId.value = ''
+    refreshLessonMaterials(lessonId)
+  } catch (e) {
+    ui.showToast('Не удалось прикрепить материал', 'error')
+  }
+}
+
 function openCreateCourse() {
   courseForm.title = ''
   courseForm.description = ''
@@ -231,6 +264,12 @@ async function removeModule(m) {
   await admin.deleteModule(m.id)
   ui.showToast('Модуль удалён', 'success')
 }
+
+async function removeCourse(course) {
+  if (!confirm(`Удалить курс «${course.title}» вместе со всеми модулями, уроками и тестами?`)) return
+  await admin.deleteCourse(course.id)
+  ui.showToast('Курс удалён', 'success')
+}
 </script>
 
 <template>
@@ -247,7 +286,10 @@ async function removeModule(m) {
         </div>
 
         <div v-for="course in admin.adminCourses" :key="course.id">
-          <h3 style="font-family:var(--font-display); font-size:20px; margin: 18px 0 10px;">{{ course.title }}</h3>
+          <div style="display:flex; align-items:center; justify-content:space-between; margin:18px 0 10px;">
+            <h3 style="font-family:var(--font-display); font-size:20px; margin:0;">{{ course.title }}</h3>
+            <button class="dl-btn" style="border-color:var(--danger); color:var(--danger);" @click="removeCourse(course)">Удалить курс</button>
+          </div>
 
           <div v-for="m in course.modules" :key="m.id" class="mini-card" style="margin-bottom:16px;">
             <div style="display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none;" @click="toggleModule(m.id)">
@@ -281,7 +323,7 @@ async function removeModule(m) {
                   </button>
                   <div class="info">
                     <h4>{{ l.title }}</h4>
-                    <span>{{ l.video_file ? 'видео загружено' : (l.video_url ? 'ссылка на видео' : 'без видео') }} · {{ (l.materials || []).length }} файлов материалов</span>
+                    <span>{{ lessonVideoLabel(l) }}</span>
                   </div>
                   <button class="dl-btn" @click="openEditLesson(m.id, l)">Изменить</button>
                   <button class="dl-btn" style="border-color:var(--danger); color:var(--danger);" @click="removeLesson(l.id)">Удалить</button>
@@ -314,25 +356,17 @@ async function removeModule(m) {
           <button v-if="lessonForm.video_file" type="button" class="dl-btn" style="margin-top:8px;" @click="openTrim">✂ Обрезать загруженное видео</button>
         </div>
 
-        <!-- Файлы можно добавлять сразу, ещё до нажатия «Сохранить» — урок
-             при необходимости создаётся автоматически при первом файле
-             (см. addMaterial/ensureLessonId), без отдельного шага. -->
-        <div class="materials-box">
-          <h4>Файлы урока (любые: слайды, документы Word/Excel, аудио, PDF, презентации, архивы — сколько угодно)</h4>
-          <div class="material-row" v-for="mat in lessonForm.materials" :key="mat.id">
-            <div class="type-icon">{{ iconForKind(mat.kind) }}</div>
-            <div class="name">{{ mat.name }}<span class="kind-label">{{ labelForKind(mat.kind) }}</span></div>
-            <a class="dl" :href="mat.file" target="_blank">Открыть</a>
-            <button class="dl-btn" style="padding:4px 8px; margin-left:8px;" @click="removeMaterial(mat.id)">Удалить</button>
+        <div class="field" style="margin-top:14px;">
+          <label>Видео из «Материалов»</label>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <select v-model="libraryPickId" :disabled="!lessonForm.title.trim()" style="flex:1;">
+              <option value="">Выберите видео урока...</option>
+              <option v-for="m in libraryOptions.filter((item) => item.type === 'video')" :key="m.id" :value="m.id">
+                ▶ {{ m.name }}
+              </option>
+            </select>
+            <button class="dl-btn" @click="attachFromLibrary" :disabled="!libraryPickId || !lessonForm.title.trim()">Прикрепить</button>
           </div>
-          <p v-if="lessonForm.materials.length === 0" style="color:var(--text-dim); font-size:12px; margin:4px 0 10px;">Файлов пока нет.</p>
-          <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; align-items:center;">
-            <input v-model="materialForm.name" placeholder="Название файла" :disabled="!lessonForm.title.trim()" style="flex:1; min-width:160px; padding:9px 12px; background:var(--navy-deep); border:1px solid var(--line); border-radius:8px; color:var(--text-hi);">
-            <input type="file" @change="onMaterialPicked" :disabled="!lessonForm.title.trim()">
-            <button class="dl-btn" @click="addMaterial" :disabled="!lessonForm.title.trim()">+ Ещё файл</button>
-          </div>
-          <div class="hint" v-if="!lessonForm.title.trim()">Сначала введите название урока выше — файл прикрепится к нему автоматически.</div>
-          <div class="hint" v-else-if="materialForm.file">Тип определён автоматически: {{ labelForKind(detectKind(materialForm.file)) }}</div>
         </div>
 
         <div class="modal-footer">

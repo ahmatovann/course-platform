@@ -74,6 +74,16 @@ async function exportProgress() {
   }
 }
 
+async function exportProgressPdf() {
+  if (!selectedId.value) return
+  const student = admin.students.find((s) => s.id === selectedId.value)
+  try {
+    await admin.exportStudentProgressPdf(selectedId.value, student?.email)
+  } catch (e) {
+    ui.showToast('Не удалось экспортировать PDF', 'error')
+  }
+}
+
 function formatDate(iso) {
   return new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
@@ -106,7 +116,10 @@ function toggleAttempts(moduleId) {
       <div class="view active">
         <div class="main-header">
           <div><h1>Прогресс ученика</h1><p>Выберите ученика, чтобы увидеть его прогресс по тренингам, статистику и историю тестов</p></div>
-          <button class="dl-btn" @click="exportProgress" :disabled="!selectedId">⬇ Экспорт в Excel</button>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="dl-btn" @click="exportProgress" :disabled="!selectedId">⬇ Excel</button>
+            <button class="dl-btn" @click="exportProgressPdf" :disabled="!selectedId">⬇ PDF</button>
+          </div>
         </div>
 
         <div class="search-row">

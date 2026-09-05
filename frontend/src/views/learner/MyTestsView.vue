@@ -24,10 +24,11 @@ onMounted(async () => {
           courseTitle: c.title,
           moduleTitle: m.title,
           testId: m.test_id,
-          unlocked: m.unlocked,
+          unlocked: m.test_available,
           passed: m.status.test_passed,
           bestScore: m.status.test_best_score,
           threshold: m.pass_threshold_percent,
+          testAvailable: m.test_available,
         })
       }
     })
@@ -57,7 +58,7 @@ function open(item) {
             <p class="desc">
               {{ item.courseTitle }}<br>
               <span v-if="item.passed">Пройден на {{ item.bestScore }}% (порог {{ item.threshold }}%)</span>
-              <span v-else-if="!item.unlocked">Откроется после предыдущего модуля</span>
+              <span v-else-if="!item.unlocked">Откроется после просмотра уроков</span>
               <span v-else>Порог прохождения — {{ item.threshold }}%</span>
             </p>
           </div>

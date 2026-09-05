@@ -13,7 +13,7 @@ from .serializers import (
     TestAttemptSerializer, CommentSerializer,
     MaterialSerializer, FavoriteMaterialSerializer, FavoriteLessonSerializer,
 )
-from .services import course_progress_percent
+from .services import course_progress_percent, is_module_unlocked
 
 
 def _is_enrolled(user, course):
@@ -196,6 +196,19 @@ class TestDetailView(generics.RetrieveAPIView):
         if self.request.user.role != 'admin':
             qs = qs.filter(module__course__enrollments__user=self.request.user)
         return qs.distinct()
+
+    def retrieve(self, request, *args, **kwargs):
+        test = self.get_object()
+        if (
+            request.user.role != 'admin'
+            and test.require_lessons_watched
+            and not is_module_unlocked(request.user, test.module)
+        ):
+            return Response(
+                {'detail': 'Тест пока закрыт предыдущим модулем'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return Response(self.get_serializer(test).data)
 
 
 class TestSubmitView(APIView):

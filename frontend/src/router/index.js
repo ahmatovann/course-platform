@@ -19,6 +19,7 @@ const routes = [
   { path: '/admin', redirect: '/admin/students' },
   { path: '/admin/students', name: 'admin-students', component: () => import('../views/admin/StudentsView.vue'), meta: { role: 'admin' } },
   { path: '/admin/courses', name: 'admin-courses', component: () => import('../views/admin/CoursesView.vue'), meta: { role: 'admin' } },
+  { path: '/admin/materials', name: 'admin-materials', component: () => import('../views/admin/MediaLibraryView.vue'), meta: { role: 'admin' } },
   { path: '/admin/tests', name: 'admin-tests', component: () => import('../views/admin/TestsView.vue'), meta: { role: 'admin' } },
   { path: '/admin/progress', name: 'admin-progress', component: () => import('../views/admin/ProgressView.vue'), meta: { role: 'admin' } },
   { path: '/admin/chats', name: 'admin-chats', component: () => import('../views/admin/AdminChatsView.vue'), meta: { role: 'admin' } },

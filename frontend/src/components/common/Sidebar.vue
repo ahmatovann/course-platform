@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useAuthStore } from '../../store/auth'
 import { useUiStore } from '../../store/ui'
 import { useRouter } from 'vue-router'
@@ -13,12 +13,6 @@ const auth = useAuthStore()
 const ui = useUiStore()
 const router = useRouter()
 const courses = useCoursesStore()
-
-// Бейдж с числом показываем только там, где есть настоящие данные —
-// сейчас это количество тренингов ученика в пункте "Тренинги" (/).
-const badgeCounts = computed(() => ({
-  '/': courses.courses.length,
-}))
 
 onMounted(() => {
   if (!auth.isAdmin && courses.courses.length === 0) courses.fetchCourses()
@@ -44,7 +38,6 @@ const showAvatarLightbox = ref(false)
       active-class="active" @click="ui.sidebarOpen = false">
       <span class="icon">{{ l.icon }}</span>
       <span class="side-link-label">{{ l.label }}</span>
-      <span v-if="badgeCounts[l.to] !== undefined" class="side-link-badge">{{ badgeCounts[l.to] }}</span>
     </router-link>
     <div class="side-footer">
       <button
