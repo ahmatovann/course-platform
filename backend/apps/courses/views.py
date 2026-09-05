@@ -78,6 +78,11 @@ class MarkLessonWatchedView(APIView):
         progress.watched = True
         progress.watched_at = timezone.now()
         progress.save()
+        from apps.admin_panel.models import record_student_activity
+        record_student_activity(
+            request.user, 'lesson_watched', f'Просмотрен урок «{lesson.title}»',
+            request.user, 'lesson', lesson.id,
+        )
         return Response({'detail': 'Урок отмечен просмотренным'})
 
 
@@ -112,6 +117,11 @@ class LessonCommentsView(APIView):
             lesson=lesson, user=request.user, text=text, video_timestamp_seconds=timestamp,
         )
         self._notify(request, lesson, comment)
+        from apps.admin_panel.models import record_student_activity
+        record_student_activity(
+            request.user, 'comment_added', f'Добавлен комментарий к уроку «{lesson.title}»',
+            request.user, 'lesson', lesson.id,
+        )
         return Response(
             CommentSerializer(comment, context={'request': request}).data,
             status=status.HTTP_201_CREATED,
@@ -166,6 +176,11 @@ class TestSubmitView(APIView):
         serializer = TestSubmitSerializer(data=request.data, context={'request': request, 'test': test})
         serializer.is_valid(raise_exception=True)
         attempt = serializer.save()
+        from apps.admin_panel.models import record_student_activity
+        record_student_activity(
+            request.user, 'test_attempt', f'Попытка теста «{test.title}»: {attempt.score_percent}%',
+            request.user, 'test', test.id,
+        )
         return Response(TestAttemptSerializer(attempt).data, status=status.HTTP_201_CREATED)
 
 

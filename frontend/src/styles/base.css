@@ -242,6 +242,25 @@
     .avatar-lightbox-img { max-width: min(90vw, 720px); max-height: 85vh; object-fit: contain; border-radius: 12px; }
     .avatar-lightbox-close { position: fixed; top: 24px; right: 28px; color: white; background: transparent; font-size: 30px; cursor: pointer; }
     @media (max-width: 900px) { .profile-grid { grid-template-columns: 1fr; } }
+    .course-timeline { display: grid; gap: 12px; }
+    .course-timeline-item { display: flex; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--navy-soft); }
+    .course-timeline-dot { width: 10px; height: 10px; margin-top: 6px; border-radius: 50%; background: var(--gold); flex: 0 0 10px; }
+    .course-timeline-dot.done { background: var(--ok); }
+    .course-timeline-dot.locked { background: var(--text-dim); }
+    .course-timeline-body { min-width: 0; flex: 1; }
+    .course-timeline-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .course-timeline-top strong { display: block; color: var(--text-hi); font-size: 15px; overflow-wrap: anywhere; }
+    .course-timeline-top p { margin: 5px 0; color: var(--text-dim); font-size: 12px; line-height: 1.45; }
+    .course-timeline-meta { color: var(--text-mid); font-size: 12px; }
+    .badge-pill { white-space: nowrap; border-radius: 999px; padding: 4px 9px; font-size: 11px; background: rgba(197, 157, 86, .15); color: var(--gold); }
+    .badge-pill.done { color: var(--ok); background: rgba(79,178,134,.14); }
+    .badge-pill.locked { color: var(--text-dim); background: rgba(150,150,150,.12); }
+    .activity-list { max-height: 52vh; overflow-y: auto; display: grid; gap: 8px; }
+    .activity-item { padding: 11px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--navy-soft); }
+    .activity-item-top { display: flex; justify-content: space-between; gap: 12px; color: var(--text-hi); font-size: 12.5px; }
+    .activity-item time, .activity-item > span { color: var(--text-dim); font-size: 11px; }
+    .activity-modal { max-width: 720px; }
+    @media (max-width: 600px) { .course-timeline-top, .activity-item-top { display: block; } .badge-pill { display: inline-block; margin-top: 8px; } }
 
     .view { display: none; animation: fadeUp .3s ease; }
     .view.active { display: block; }

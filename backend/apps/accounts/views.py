@@ -27,6 +27,9 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
         data = super().validate(attrs)
         data['user'] = UserSerializer(self.user, context=self.context).data
+        if self.user.role == 'student':
+            from apps.admin_panel.models import record_student_activity
+            record_student_activity(self.user, 'login', 'Выполнен вход в систему', self.user)
         return data
 
 

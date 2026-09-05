@@ -47,6 +47,10 @@ export const useAdminStore = defineStore('admin', {
       await client.delete(`/admin/students/${id}/delete/`)
       this.students = this.students.filter((student) => student.id !== id)
     },
+    async fetchStudentActivity(id) {
+      const { data } = await client.get(`/admin/students/${id}/activity/`)
+      return data
+    },
     async enrollStudent(id, courseId) {
       const { data } = await client.post(`/admin/students/${id}/enroll/`, { course_id: courseId })
       const idx = this.students.findIndex((s) => s.id === id)

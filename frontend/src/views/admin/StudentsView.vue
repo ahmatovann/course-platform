@@ -15,6 +15,9 @@ const result = ref(null)
 const form = reactive({ name: '', email: '', phone: '', course_id: null, access_amount: 3, access_unit: 'month' })
 const search = ref('')
 const status = ref('')
+const activityStudent = ref(null)
+const activityItems = ref([])
+const activityLoading = ref(false)
 let debounceTimer = null
 
 onMounted(async () => {
@@ -80,6 +83,16 @@ async function removeStudent(student) {
   } catch (e) {
     ui.showToast('Не удалось удалить ученика', 'error')
   }
+}
+
+async function openActivity(student) {
+  activityStudent.value = student
+  activityLoading.value = true
+  try { activityItems.value = await admin.fetchStudentActivity(student.id) } finally { activityLoading.value = false }
+}
+
+function formatActivityDate(value) {
+  return new Date(value).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 // Срок доступа ученика — показываем дату и подсвечиваем, если доступ уже
@@ -200,6 +213,7 @@ async function toggleCourse(c) {
               <td class="row-actions">
                 <button @click="openCoursesModal(s)" title="Изменить курсы">Курсы</button>
                 <button @click="openExtendModal(s)" title="Продлить доступ на выбранный срок">Продлить</button>
+                <button @click="openActivity(s)" title="История действий">История</button>
                 <button @click="removeStudent(s)" title="Удалить ученика" style="color:var(--danger);">Удалить</button>
               </td>
             </tr>
@@ -241,6 +255,22 @@ async function toggleCourse(c) {
           <button class="btn-ghost" @click="showModal = false">Закрыть</button>
           <button class="btn-primary" @click="createStudent">Создать и отправить</button>
         </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" :class="{ active: activityStudent }" @click.self="activityStudent = null">
+      <div class="modal activity-modal" v-if="activityStudent">
+        <h3>История: {{ activityStudent.first_name }} {{ activityStudent.last_name }}</h3>
+        <p class="mod-sub">Все действия ученика и изменения доступа</p>
+        <div v-if="activityLoading" class="hint">Загрузка...</div>
+        <div v-else class="activity-list">
+          <div v-for="item in activityItems" :key="item.id" class="activity-item">
+            <div class="activity-item-top"><strong>{{ item.description }}</strong><time>{{ formatActivityDate(item.created_at) }}</time></div>
+            <span>{{ item.actor_name }}</span>
+          </div>
+          <div v-if="activityItems.length === 0" class="hint">История пока пуста.</div>
+        </div>
+        <div class="modal-footer"><button class="btn-ghost" @click="activityStudent = null">Закрыть</button></div>
       </div>
     </div>
 

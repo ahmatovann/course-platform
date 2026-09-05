@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from apps.courses.models import Course
+from .models import StudentActivity
 
 User = get_user_model()
 
@@ -22,6 +23,17 @@ class StudentSerializer(serializers.ModelSerializer):
 
     def get_course_ids(self, obj):
         return [e.course_id for e in obj.enrollments.all()]
+
+
+class StudentActivitySerializer(serializers.ModelSerializer):
+    actor_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = StudentActivity
+        fields = ['id', 'action', 'description', 'entity_type', 'entity_id', 'actor_name', 'created_at']
+
+    def get_actor_name(self, obj):
+        return obj.actor.get_full_name() or obj.actor.email if obj.actor else 'Система'
 
 
 class CreateStudentSerializer(serializers.Serializer):

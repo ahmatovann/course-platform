@@ -13,7 +13,8 @@ from apps.accounts.utils import (
 from apps.courses.models import Course, Enrollment
 from django.utils import timezone
 
-from .serializers import StudentSerializer, CreateStudentSerializer
+from .serializers import StudentSerializer, CreateStudentSerializer, StudentActivitySerializer
+from .models import StudentActivity, record_student_activity
 
 User = get_user_model()
 
@@ -87,6 +88,7 @@ class CreateStudentView(APIView):
         course = data.get('course_id')
         if course:
             Enrollment.objects.get_or_create(user=user, course=course)
+        record_student_activity(user, 'student_created', 'Ученик создан администратором', request.user, 'student', user.id)
 
         send_welcome_email(user, password)
 
@@ -108,7 +110,16 @@ class ToggleStudentStatusView(APIView):
         user.is_active_student = not user.is_active_student
         user.is_active = user.is_active_student
         user.save(update_fields=['is_active_student', 'is_active'])
+        record_student_activity(user, 'status_changed', f"Статус изменён: {'активен' if user.is_active_student else 'не активен'}", request.user, 'student', user.id)
         return Response(StudentSerializer(user).data)
+
+
+class StudentActivityView(generics.ListAPIView):
+    serializer_class = StudentActivitySerializer
+    permission_classes = [IsAdmin]
+
+    def get_queryset(self):
+        return StudentActivity.objects.filter(student_id=self.kwargs['pk']).select_related('actor')
 
 
 class DeleteStudentView(APIView):
@@ -130,12 +141,14 @@ class StudentEnrollView(APIView):
         student = get_object_or_404(User, pk=pk, role=User.Role.STUDENT)
         course = get_object_or_404(Course, pk=request.data.get('course_id'))
         Enrollment.objects.get_or_create(user=student, course=course)
+        record_student_activity(student, 'course_access_granted', f'Открыт доступ к курсу «{course.title}»', request.user, 'course', course.id)
         return Response(StudentSerializer(student).data, status=status.HTTP_201_CREATED)
 
     def delete(self, request, pk):
         student = get_object_or_404(User, pk=pk, role=User.Role.STUDENT)
         course_id = request.data.get('course_id')
         Enrollment.objects.filter(user=student, course_id=course_id).delete()
+        record_student_activity(student, 'course_access_removed', 'Доступ к курсу закрыт', request.user, 'course', course_id)
         return Response(StudentSerializer(student).data)
 
 
@@ -161,6 +174,7 @@ class StudentExtendAccessView(APIView):
         user.is_active_student = True
         user.is_active = True
         user.save(update_fields=['access_expires_at', 'is_active_student', 'is_active'])
+        record_student_activity(user, 'access_extended', f'Доступ продлён на {amount} {unit}', request.user, 'student', user.id)
         return Response(StudentSerializer(user).data)
 
 

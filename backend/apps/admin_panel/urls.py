@@ -1,7 +1,7 @@
 from django.urls import path
 
 from .views import (
-    StudentListView, CreateStudentView, ToggleStudentStatusView, DeleteStudentView, StudentEnrollView,
+    StudentListView, CreateStudentView, ToggleStudentStatusView, DeleteStudentView, StudentActivityView, StudentEnrollView,
     StudentExtendAccessView,
     AdminCourseListView, AdminCourseDeleteView, AdminModuleUpdateView,
     AdminLessonCreateView, AdminLessonUpdateDeleteView, AdminLessonVideoDeleteView,
@@ -20,6 +20,7 @@ urlpatterns = [
     path('students/export-pdf/', StudentsPdfExportView.as_view(), name='admin-students-export-pdf'),
     path('students/<int:pk>/toggle/', ToggleStudentStatusView.as_view(), name='admin-students-toggle'),
     path('students/<int:pk>/delete/', DeleteStudentView.as_view(), name='admin-students-delete'),
+    path('students/<int:pk>/activity/', StudentActivityView.as_view(), name='admin-students-activity'),
     path('students/<int:pk>/enroll/', StudentEnrollView.as_view(), name='admin-students-enroll'),
     path('students/<int:pk>/extend/', StudentExtendAccessView.as_view(), name='admin-students-extend'),
     path('students/<int:pk>/progress/', StudentProgressView.as_view(), name='admin-students-progress'),
