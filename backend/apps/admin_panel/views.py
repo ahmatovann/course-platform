@@ -6,7 +6,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsAdmin
-from apps.accounts.utils import generate_password, send_welcome_email
+from apps.accounts.utils import (
+    generate_password, send_welcome_email, deactivate_expired_students, send_access_expiry_reminders,
+)
 from apps.courses.models import Course, Enrollment
 
 from .models import log_action, AuditLogEntry
@@ -24,6 +26,14 @@ class StudentListView(generics.ListAPIView):
     permission_classes = [IsAdmin]
 
     def get_queryset(self):
+        # Перед каждым просмотром списка учеников — деактивируем тех, у
+        # кого истёк 3-месячный срок доступа (см. accounts.utils), чтобы
+        # статус «Активен/Не активен» в админке всегда был актуальным без
+        # отдельного фонового планировщика (его в проекте нет).
+        deactivate_expired_students()
+        # Напоминание в чат тем, у кого доступ истекает в ближайшие
+        # несколько дней (см. accounts.utils.send_access_expiry_reminders).
+        send_access_expiry_reminders()
         qs = User.objects.filter(role=User.Role.STUDENT).order_by('-date_joined')
         search = self.request.query_params.get('search', '').strip()
         if search:
@@ -62,11 +72,18 @@ class CreateStudentView(APIView):
         first_name = name_parts[0]
         last_name = name_parts[1] if len(name_parts) > 1 else ''
 
+        from django.utils import timezone
+        from apps.accounts.utils import ACCESS_PERIOD
+
         password = generate_password()
         user = User.objects.create_user(
             username=data['email'], email=data['email'], password=password,
             first_name=first_name, last_name=last_name, phone=data.get('phone', ''),
             role=User.Role.STUDENT, must_change_password=True,
+            # Доступ ученика действует 3 месяца с момента создания — по
+            # истечении срока deactivate_expired_students() автоматически
+            # переводит его в статус «Не активен» (см. StudentListView).
+            access_expires_at=timezone.now() + ACCESS_PERIOD,
         )
         course = data.get('course_id')
         if course:
@@ -96,6 +113,57 @@ class ToggleStudentStatusView(APIView):
         log_action(
             request, 'toggled', 'ученик',
             f'{user.first_name} {user.last_name}'.strip() + (' → активен' if user.is_active_student else ' → не активен'),
+        )
+        return Response(StudentSerializer(user).data)
+
+
+class StudentExtendAccessView(APIView):
+    """Продлить доступ ученика.
+
+    Администратор может либо выбрать период в месяцах (приходит в теле
+    запроса как `months` — 1, 2, 3 и т.д., от сегодняшнего дня), либо
+    указать точную дату, до которой действует доступ (`until`, формат
+    YYYY-MM-DD — вручную вписанная дата имеет приоритет над `months`,
+    если передано и то, и другое). После продления сразу возвращаем
+    статус «Активен» (если доступ уже истёк и был автоматически закрыт —
+    см. deactivate_expired_students). Если ни `until`, ни корректный
+    `months` не переданы, по умолчанию продлеваем на 3 месяца (старое
+    поведение)."""
+    permission_classes = [IsAdmin]
+
+    def post(self, request, pk):
+        from datetime import datetime, timedelta
+
+        from django.utils import timezone
+        from django.utils.dateparse import parse_date
+
+        user = User.objects.filter(pk=pk, role=User.Role.STUDENT).first()
+        if not user:
+            return Response({'detail': 'Не найден'}, status=404)
+
+        until_raw = (request.data.get('until') or '').strip()
+        if until_raw:
+            until_date = parse_date(until_raw)
+            if not until_date:
+                return Response({'detail': 'Некорректная дата'}, status=400)
+            # Доступ действует до конца указанного дня включительно.
+            naive_end_of_day = datetime.combine(until_date, datetime.max.time())
+            new_expiry = timezone.make_aware(naive_end_of_day) if timezone.is_naive(naive_end_of_day) else naive_end_of_day
+        else:
+            try:
+                months = int(request.data.get('months', 3))
+            except (TypeError, ValueError):
+                months = 3
+            months = max(1, min(months, 24))
+            new_expiry = timezone.now() + timedelta(days=30 * months)
+
+        user.access_expires_at = new_expiry
+        user.is_active_student = True
+        user.is_active = True
+        user.save(update_fields=['access_expires_at', 'is_active_student', 'is_active'])
+        log_action(
+            request, 'updated', 'доступ ученика',
+            f'{user.first_name} {user.last_name}'.strip() + f' → до {timezone.localtime(new_expiry):%d.%m.%Y}',
         )
         return Response(StudentSerializer(user).data)
 
@@ -374,9 +442,13 @@ class ModuleCompletionStatsView(APIView):
 
 from django.http import FileResponse  # noqa: E402
 
-from .exports import export_student_progress_xlsx, export_students_xlsx  # noqa: E402
+from .exports import (  # noqa: E402
+    export_student_progress_xlsx, export_students_xlsx,
+    export_student_progress_pdf, export_students_pdf,
+)
 
 XLSX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+PDF_CONTENT_TYPE = 'application/pdf'
 
 
 class StudentProgressExportView(APIView):
@@ -396,18 +468,40 @@ class StudentProgressExportView(APIView):
                 modules_data.append({'title': m.title, 'unlocked': is_module_unlocked(student, m), **st})
             courses_data.append({'course_title': course.title, 'modules': modules_data})
 
+        fmt = (request.query_params.get('filetype') or 'xlsx').lower()
+        if fmt == 'pdf':
+            buffer = export_student_progress_pdf(courses_data, student.get_full_name() or student.email)
+            filename = f'progress-{student.email}.pdf'
+            return FileResponse(buffer, as_attachment=True, filename=filename, content_type=PDF_CONTENT_TYPE)
+
         buffer = export_student_progress_xlsx(courses_data)
         filename = f'progress-{student.email}.xlsx'
         return FileResponse(buffer, as_attachment=True, filename=filename, content_type=XLSX_CONTENT_TYPE)
 
 
 class StudentsExportView(APIView):
+    """Экспорт списка учеников в Excel или PDF (?format=xlsx|pdf).
+
+    По умолчанию — все ученики. Если передан ?ids=1,2,3 — экспортируются
+    только выбранные (админ отмечает нужных галочками в списке «Ученики» и
+    жмёт «Экспорт» — тогда выгружаются не все, а только отмеченные)."""
     permission_classes = [IsAdmin]
 
     def get(self, request):
         students = User.objects.filter(role=User.Role.STUDENT).order_by('-date_joined').prefetch_related(
             'enrollments__course'
         )
+
+        ids_param = (request.query_params.get('ids') or '').strip()
+        if ids_param:
+            ids = [int(v) for v in ids_param.split(',') if v.strip().isdigit()]
+            students = students.filter(pk__in=ids)
+
+        fmt = (request.query_params.get('filetype') or 'xlsx').lower()
+        if fmt == 'pdf':
+            buffer = export_students_pdf(students)
+            return FileResponse(buffer, as_attachment=True, filename='students.pdf', content_type=PDF_CONTENT_TYPE)
+
         buffer = export_students_xlsx(students)
         return FileResponse(buffer, as_attachment=True, filename='students.xlsx', content_type=XLSX_CONTENT_TYPE)
 
@@ -565,14 +659,22 @@ def _file_size(field):
 class AdminMediaListView(APIView):
     """Список всех загруженных файлов (видео уроков + материалы уроков) с
     поиском (?search=) по названию/месту использования и сортировкой
-    (?sort=name_asc|name_desc|size_asc|size_desc|used_in_asc|used_in_desc)."""
+    (?sort=name_asc|name_desc|size_asc|size_desc|used_in_asc|used_in_desc).
+
+    Один и тот же файл может быть прикреплён сразу к нескольким урокам —
+    чтобы такой файл не занимал в списке по строке на каждое использование,
+    все записи с одинаковым путём файла (url) схлопываются в одну строку;
+    полный список мест использования уходит в поле `usages`, а
+    `used_in`/`used_in_count` — короткая сводка для колонки таблицы
+    («Курс → Модуль → Урок» при одном использовании, иначе
+    «Используется в N местах»)."""
     permission_classes = [IsAdmin]
 
     def get(self, request):
         search = request.query_params.get('search', '').strip().lower()
         sort = request.query_params.get('sort', 'name_asc')
 
-        items = []
+        raw = []
 
         lessons = (
             Lesson.objects.exclude(video_file='').filter(video_file__isnull=False)
@@ -581,19 +683,24 @@ class AdminMediaListView(APIView):
         for lesson in lessons:
             module = lesson.module
             course = module.course
-            items.append({
+            raw.append({
                 'id': f'video-{lesson.id}',
                 'type': 'video',
                 'kind_label': 'Видео',
                 'name': lesson.title,
                 'thumb': request.build_absolute_uri(lesson.video_poster.url) if lesson.video_poster else None,
                 'size_bytes': _file_size(lesson.video_file),
-                'used_in': f'{course.title} → {module.title} → {lesson.title}',
-                'course_id': course.id,
-                'module_id': module.id,
-                'lesson_id': lesson.id,
                 'url': request.build_absolute_uri(lesson.video_file.url),
                 'duration_seconds': lesson.duration_seconds,
+                'file_kind': None,
+                '_usage': {
+                    'kind': 'lesson_video', 'name': lesson.title,
+                    'course_id': course.id, 'course_title': course.title,
+                    'module_id': module.id, 'module_title': module.title,
+                    'lesson_id': lesson.id, 'lesson_title': lesson.title,
+                    'material_id': None,
+                    'label': f'{course.title} → {module.title} → {lesson.title}',
+                },
             })
 
         materials = (
@@ -604,34 +711,60 @@ class AdminMediaListView(APIView):
             lesson = material.lesson
             module = lesson.module
             course = module.course
-            items.append({
+            raw.append({
                 'id': f'material-{material.id}',
                 'type': 'material',
                 'kind_label': MEDIA_KIND_LABELS.get(material.kind, 'Файл'),
                 'name': material.name,
                 'thumb': request.build_absolute_uri(material.file.url) if material.kind == 'image' else None,
                 'size_bytes': _file_size(material.file),
-                'used_in': f'{course.title} → {module.title} → {lesson.title}',
-                'course_id': course.id,
-                'module_id': module.id,
-                'lesson_id': lesson.id,
-                'material_id': material.id,
                 'url': request.build_absolute_uri(material.file.url),
                 'file_kind': material.kind,
+                '_usage': {
+                    'kind': 'material', 'name': material.name,
+                    'course_id': course.id, 'course_title': course.title,
+                    'module_id': module.id, 'module_title': module.title,
+                    'lesson_id': lesson.id, 'lesson_title': lesson.title,
+                    'material_id': material.id,
+                    'label': f'{course.title} → {module.title} → {lesson.title}',
+                },
             })
 
+        # Группировка по фактическому пути файла — см. описание класса выше.
+        groups = {}
+        order = []
+        for entry in raw:
+            key = entry['url']
+            if key not in groups:
+                group = dict(entry)
+                usage = group.pop('_usage')
+                group['usages'] = [usage]
+                groups[key] = group
+                order.append(key)
+            else:
+                groups[key]['usages'].append(entry['_usage'])
+
+        items = []
+        for key in order:
+            g = groups[key]
+            count = len(g['usages'])
+            g['used_in_count'] = count
+            g['used_in'] = g['usages'][0]['label'] if count == 1 else f'Используется в {count} местах'
+            items.append(g)
+
         if search:
-            items = [
-                item for item in items
-                if search in item['name'].lower() or search in item['used_in'].lower()
-            ]
+            def matches(item):
+                if search in item['name'].lower():
+                    return True
+                return any(search in u['label'].lower() for u in item['usages'])
+            items = [item for item in items if matches(item)]
 
         reverse = sort.endswith('_desc')
         key_name = sort.rsplit('_', 1)[0] if sort.endswith(('_asc', '_desc')) else sort
         key_funcs = {
             'name': lambda i: i['name'].lower(),
             'size': lambda i: i['size_bytes'] or 0,
-            'used_in': lambda i: i['used_in'].lower(),
+            'used_in': lambda i: (-i['used_in_count'], i['used_in'].lower()),
             'type': lambda i: i['type'],
         }
         items.sort(key=key_funcs.get(key_name, key_funcs['name']), reverse=reverse)

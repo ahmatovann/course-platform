@@ -17,13 +17,19 @@ export const useAdminStore = defineStore('admin', {
       this.students = data
       return data
     },
-    async exportStudents() {
-      const res = await client.get('/admin/students/export/', { responseType: 'blob' })
-      downloadBlob(res.data, 'students.xlsx')
+    // format: 'xlsx' | 'pdf'. ids: необязательный массив id учеников — если
+    // передан (список отмечен галочками), выгружаются только они, иначе все.
+    // Параметр на бэкенде называется filetype, а не format — «format» зарезервирован
+    // самим DRF (переключает формат ответа рендерера) и конфликтует с нашим смыслом.
+    async exportStudents({ format = 'xlsx', ids = [] } = {}) {
+      const params = { filetype: format }
+      if (ids.length) params.ids = ids.join(',')
+      const res = await client.get('/admin/students/export/', { params, responseType: 'blob' })
+      downloadBlob(res.data, `students.${format}`)
     },
-    async exportStudentProgress(id, email) {
-      const res = await client.get(`/admin/students/${id}/progress/export/`, { responseType: 'blob' })
-      downloadBlob(res.data, `progress-${email || id}.xlsx`)
+    async exportStudentProgress(id, email, format = 'xlsx') {
+      const res = await client.get(`/admin/students/${id}/progress/export/`, { params: { filetype: format }, responseType: 'blob' })
+      downloadBlob(res.data, `progress-${email || id}.${format}`)
     },
     async createStudent(payload) {
       const { data } = await client.post('/admin/students/create/', payload)
@@ -32,6 +38,16 @@ export const useAdminStore = defineStore('admin', {
     },
     async toggleStudent(id) {
       const { data } = await client.post(`/admin/students/${id}/toggle/`)
+      const idx = this.students.findIndex((s) => s.id === id)
+      if (idx !== -1) this.students[idx] = data
+      return data
+    },
+    // Продлить доступ ученика: либо на выбранный период в месяцах, либо
+    // до конкретной даты, которую администратор вписал сам (until имеет
+    // приоритет, если передано и то, и другое).
+    async extendStudentAccess(id, { months = 3, until = '' } = {}) {
+      const payload = until ? { until } : { months }
+      const { data } = await client.post(`/admin/students/${id}/extend/`, payload)
       const idx = this.students.findIndex((s) => s.id === id)
       if (idx !== -1) this.students[idx] = data
       return data

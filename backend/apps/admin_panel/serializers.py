@@ -28,7 +28,7 @@ class StudentSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             'id', 'first_name', 'last_name', 'email', 'phone',
-            'is_active_student', 'date_joined', 'course_titles', 'course_ids',
+            'is_active_student', 'date_joined', 'access_expires_at', 'course_titles', 'course_ids',
         ]
 
     def get_course_titles(self, obj):

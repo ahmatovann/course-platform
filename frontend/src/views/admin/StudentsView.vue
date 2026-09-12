@@ -19,7 +19,23 @@ const result = ref(null)
 const form = reactive({ name: '', email: '', phone: '', course_id: null })
 const search = ref('')
 const status = ref('')
+const sortBy = ref('name_asc')
 let debounceTimer = null
+
+const sortedStudents = computed(() => {
+  const list = [...admin.students]
+  switch (sortBy.value) {
+    case 'name_desc':
+      return list.sort((a, b) => `${b.first_name} ${b.last_name}`.localeCompare(`${a.first_name} ${a.last_name}`, 'ru'))
+    case 'email_asc':
+      return list.sort((a, b) => a.email.localeCompare(b.email))
+    case 'newest':
+      return list.sort((a, b) => new Date(b.date_joined) - new Date(a.date_joined))
+    case 'name_asc':
+    default:
+      return list.sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`, 'ru'))
+  }
+})
 
 onMounted(async () => {
   await admin.fetchStudents()
@@ -34,9 +50,24 @@ watch([search, status], () => {
 })
 onUnmounted(() => { if (debounceTimer) clearTimeout(debounceTimer) })
 
-async function exportStudents() {
+// ===== Выбор учеников для выборочного экспорта =====
+// Если ничего не отмечено — экспортируется весь текущий список (как раньше),
+// если отмечены конкретные ученики — выгружаются только они.
+const selectedIds = ref([])
+const allSelected = computed(() => sortedStudents.value.length > 0 && sortedStudents.value.every((s) => selectedIds.value.includes(s.id)))
+
+function toggleSelectAll() {
+  selectedIds.value = allSelected.value ? [] : sortedStudents.value.map((s) => s.id)
+}
+function toggleSelect(id) {
+  const i = selectedIds.value.indexOf(id)
+  if (i === -1) selectedIds.value.push(id)
+  else selectedIds.value.splice(i, 1)
+}
+
+async function exportStudents(format) {
   try {
-    await admin.exportStudents()
+    await admin.exportStudents({ format, ids: selectedIds.value })
   } catch (e) {
     ui.showToast('Не удалось экспортировать', 'error')
   }
@@ -64,6 +95,55 @@ async function createStudent() {
 async function toggle(s) {
   await admin.toggleStudent(s.id)
   ui.showToast(s.is_active_student ? 'Ученик деактивирован' : 'Ученик активирован', s.is_active_student ? 'error' : 'success')
+}
+
+// Доступ ученика ограничен 3 месяцами (см. backend) — по истечении срока
+// статус автоматически становится «Не активен». Кнопка продлевает доступ
+// ещё на 3 месяца вперёд и сразу возвращает статус «Активен».
+function formatExpiry(iso) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
+function isExpiringSoon(iso) {
+  if (!iso) return false
+  const days = (new Date(iso) - new Date()) / 86400000
+  return days > 0 && days <= 14
+}
+
+function isExpired(iso) {
+  if (!iso) return false
+  return new Date(iso) < new Date()
+}
+
+// Продление доступа идёт через модалку с выбором периода
+// (1, 2, 3, 6, 12 месяцев) — админ сам решает, на сколько продлить,
+// а не всегда +3 месяца. Рядом — необязательное поле точной даты:
+// если оно заполнено, оно важнее выбранного периода.
+const extendModalStudentId = ref(null)
+const extendMonths = ref(3)
+const extendUntilDate = ref('')
+const extendModalStudent = computed(() => admin.students.find((s) => s.id === extendModalStudentId.value) || null)
+
+function openExtendModal(s) {
+  extendModalStudentId.value = s.id
+  extendMonths.value = 3
+  extendUntilDate.value = ''
+}
+
+async function confirmExtend() {
+  const s = extendModalStudent.value
+  if (!s) return
+  try {
+    await admin.extendStudentAccess(s.id, { months: extendMonths.value, until: extendUntilDate.value })
+    ui.showToast(
+      extendUntilDate.value ? `Доступ продлён до ${formatExpiry(extendUntilDate.value)}` : `Доступ продлён на ${extendMonths.value} мес.`,
+      'success',
+    )
+    extendModalStudentId.value = null
+  } catch (e) {
+    ui.showToast('Не удалось продлить доступ', 'error')
+  }
 }
 
 const coursesModalStudentId = ref(null)
@@ -127,7 +207,7 @@ function closeCard() {
 const cardMaterials = computed(() => {
   if (!cardStudent.value) return []
   const courseIds = new Set(cardStudent.value.course_ids || [])
-  return admin.media.filter((item) => courseIds.has(item.course_id))
+  return admin.media.filter((item) => item.usages.some((u) => courseIds.has(u.course_id)))
 })
 
 async function goToChat(s) {
@@ -158,7 +238,8 @@ function formatSize(bytes) {
         <div class="main-header">
           <div><h1>Ученики</h1><p>Регистрация возможна только через администратора</p></div>
           <div style="display:flex; gap:10px;">
-            <button class="dl-btn" @click="exportStudents">⬇ Экспорт в Excel</button>
+            <button class="dl-btn" :title="selectedIds.length ? `Экспортировать отмеченных: ${selectedIds.length}` : 'Экспортировать весь список'" @click="exportStudents('xlsx')">⬇ Excel{{ selectedIds.length ? ` (${selectedIds.length})` : '' }}</button>
+            <button class="dl-btn" :title="selectedIds.length ? `Экспортировать отмеченных: ${selectedIds.length}` : 'Экспортировать весь список'" @click="exportStudents('pdf')">⬇ PDF{{ selectedIds.length ? ` (${selectedIds.length})` : '' }}</button>
             <button class="btn-primary" style="width:auto; padding:12px 22px" @click="openModal">+ Добавить ученика</button>
           </div>
         </div>
@@ -169,11 +250,21 @@ function formatSize(bytes) {
             <option value="active">Активные</option>
             <option value="inactive">Не активные</option>
           </select>
+          <select v-model="sortBy" title="Сортировка">
+            <option value="name_asc">Имя А→Я</option>
+            <option value="name_desc">Имя Я→А</option>
+            <option value="email_asc">По email</option>
+            <option value="newest">Сначала новые</option>
+          </select>
         </div>
+        <p v-if="selectedIds.length" style="color:var(--text-dim); font-size:12.5px; margin-bottom:8px;">
+          Отмечено: {{ selectedIds.length }}. Кнопки экспорта выше выгрузят только отмеченных — снимите галочки, чтобы экспортировать весь список.
+        </p>
         <table>
-          <thead><tr><th>Ученик</th><th>Email</th><th>Телефон</th><th>Статус</th><th>Курсы</th><th></th></tr></thead>
+          <thead><tr><th style="width:36px;"><input type="checkbox" :checked="allSelected" @click.stop="toggleSelectAll"></th><th>Ученик</th><th>Email</th><th>Телефон</th><th>Статус</th><th>Доступ до</th><th>Курсы</th><th></th></tr></thead>
           <tbody>
-            <tr v-for="s in admin.students" :key="s.id" style="cursor:pointer;" @click="openCard(s)">
+            <tr v-for="s in sortedStudents" :key="s.id" style="cursor:pointer;" @click="openCard(s)">
+              <td><input type="checkbox" :checked="selectedIds.includes(s.id)" @click.stop="toggleSelect(s.id)"></td>
               <td style="color:var(--gold); text-decoration:underline;">{{ s.first_name }} {{ s.last_name }}</td>
               <td>{{ s.email }}</td>
               <td>{{ s.phone || '—' }}</td>
@@ -183,9 +274,15 @@ function formatSize(bytes) {
                   @click.stop="toggle(s)" :title="s.is_active_student ? 'Нажмите, чтобы деактивировать' : 'Нажмите, чтобы активировать'"
                 >{{ s.is_active_student ? 'Активен' : 'Не активен' }}</button>
               </td>
+              <td>
+                <span :style="{ color: isExpired(s.access_expires_at) ? 'var(--danger)' : (isExpiringSoon(s.access_expires_at) ? 'var(--gold)' : 'var(--text-mid)') }">
+                  {{ formatExpiry(s.access_expires_at) }}
+                </span>
+              </td>
               <td>{{ s.course_titles.join(', ') || '—' }}</td>
               <td class="row-actions">
                 <button @click.stop="openCoursesModal(s)" title="Изменить курсы">Курсы</button>
+                <button @click.stop="openExtendModal(s)" title="Продлить доступ на выбранный срок">Продлить</button>
               </td>
             </tr>
           </tbody>
@@ -252,7 +349,14 @@ function formatSize(bytes) {
           <button type="button" class="btn-primary" style="width:auto; padding:9px 16px;" :disabled="openingChat" @click="goToChat(cardStudent)">
             💬 {{ openingChat ? 'Открываем...' : 'Написать в чат' }}
           </button>
+          <button type="button" class="dl-btn" @click="openExtendModal(cardStudent)">Продлить доступ</button>
         </div>
+        <p style="color:var(--text-dim); font-size:12.5px; margin:-12px 0 20px;">
+          Доступ до:
+          <span :style="{ color: isExpired(cardStudent.access_expires_at) ? 'var(--danger)' : (isExpiringSoon(cardStudent.access_expires_at) ? 'var(--gold)' : 'var(--text-mid)') }">
+            {{ formatExpiry(cardStudent.access_expires_at) }}
+          </span>
+        </p>
 
         <h4>Прогресс</h4>
         <div v-if="cardProgressLoading" style="color:var(--text-dim); font-size:13px; margin-bottom:16px;">Загрузка...</div>
@@ -279,6 +383,35 @@ function formatSize(bytes) {
 
         <div class="modal-footer">
           <button class="btn-ghost" @click="closeCard">Закрыть</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" :class="{ active: extendModalStudent }">
+      <div class="modal" v-if="extendModalStudent">
+        <h3>Продлить доступ</h3>
+        <p class="mod-sub">
+          {{ extendModalStudent.first_name }} {{ extendModalStudent.last_name }} — выберите, на сколько
+          продлить доступ, или укажите точную дату ниже. Текущий срок: {{ formatExpiry(extendModalStudent.access_expires_at) }}.
+        </p>
+        <div class="field">
+          <label>Период продления</label>
+          <select v-model.number="extendMonths" :disabled="!!extendUntilDate">
+            <option :value="1">1 месяц</option>
+            <option :value="2">2 месяца</option>
+            <option :value="3">3 месяца</option>
+            <option :value="6">6 месяцев</option>
+            <option :value="12">12 месяцев</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Или введите точную дату (необязательно)</label>
+          <input type="date" v-model="extendUntilDate">
+          <div class="hint">Если указана — доступ продлится до конца этого дня, а выбранный период выше не учитывается.</div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-ghost" @click="extendModalStudentId = null">Отмена</button>
+          <button class="btn-primary" @click="confirmExtend">Продлить</button>
         </div>
       </div>
     </div>

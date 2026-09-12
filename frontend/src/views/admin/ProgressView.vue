@@ -64,11 +64,11 @@ function pickStudent(id) {
   load()
 }
 
-async function exportProgress() {
+async function exportProgress(format = 'xlsx') {
   if (!selectedId.value) return
   const student = admin.students.find((s) => s.id === selectedId.value)
   try {
-    await admin.exportStudentProgress(selectedId.value, student?.email)
+    await admin.exportStudentProgress(selectedId.value, student?.email, format)
   } catch (e) {
     ui.showToast('Не удалось экспортировать', 'error')
   }
@@ -106,7 +106,10 @@ function toggleAttempts(moduleId) {
       <div class="view active">
         <div class="main-header">
           <div><h1>Прогресс ученика</h1><p>Выберите ученика, чтобы увидеть его прогресс по тренингам, статистику и историю тестов</p></div>
-          <button class="dl-btn" @click="exportProgress" :disabled="!selectedId">⬇ Экспорт в Excel</button>
+          <div style="display:flex; gap:10px;">
+            <button class="dl-btn" @click="exportProgress('xlsx')" :disabled="!selectedId">⬇ Excel</button>
+            <button class="dl-btn" @click="exportProgress('pdf')" :disabled="!selectedId">⬇ PDF</button>
+          </div>
         </div>
 
         <div class="search-row">

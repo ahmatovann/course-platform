@@ -17,6 +17,18 @@ class User(AbstractUser):
     city = models.CharField(max_length=64, blank=True, default='')
     is_active_student = models.BooleanField(default=True)
     must_change_password = models.BooleanField(default=True)
+    # Срок действия доступа ученика (создаётся/продлевается администратором
+    # на 3 месяца вперёд — см. apps.accounts.utils.ACCESS_PERIOD). После
+    # истечения срока deactivate_expired_students() автоматически снимает
+    # is_active_student. Для администраторов и учеников без ограничения
+    # доступа остаётся пустым (null) — тогда доступ бессрочный.
+    access_expires_at = models.DateTimeField(null=True, blank=True)
+    # Срок действия, для которого уже отправлено напоминание в личный чат с
+    # преподавателем (см. accounts.utils.send_access_expiry_reminders).
+    # Хранится именно значение access_expires_at, а не просто флаг — так при
+    # продлении доступа (access_expires_at меняется) напоминание для нового
+    # срока отправится заново, а повторно на один и тот же срок — нет.
+    access_reminder_sent_for = models.DateTimeField(null=True, blank=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']

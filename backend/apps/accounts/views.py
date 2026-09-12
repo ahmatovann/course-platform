@@ -11,7 +11,7 @@ from .serializers import (
     UserSerializer, ProfileUpdateSerializer,
     ChangePasswordSerializer, PasswordResetRequestSerializer, PasswordResetConfirmSerializer,
 )
-from .utils import send_password_reset_email
+from .utils import send_password_reset_email, deactivate_expired_students, send_access_expiry_reminders
 
 User = get_user_model()
 
@@ -25,6 +25,15 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
         return token
 
     def validate(self, attrs):
+        # Если у этого конкретного ученика уже истёк 3-месячный срок
+        # доступа, но плановая проверка (StudentListView) ещё не
+        # запускалась — деактивируем его прямо здесь, до входа, чтобы вход
+        # с истёкшим сроком доступа не проходил, даже если админ ни разу
+        # не открывал список учеников после истечения срока.
+        deactivate_expired_students()
+        # Напоминание в чат, если у этого ученика доступ вот-вот истечёт
+        # (см. accounts.utils.send_access_expiry_reminders).
+        send_access_expiry_reminders()
         data = super().validate(attrs)
         data['user'] = UserSerializer(self.user, context=self.context).data
         return data
