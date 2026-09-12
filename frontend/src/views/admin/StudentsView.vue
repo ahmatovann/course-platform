@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import Sidebar from '../../components/common/Sidebar.vue'
+import ProgressRing from '../../components/common/ProgressRing.vue'
 import { useAdminStore } from '../../store/admin'
 import { useCoursesStore } from '../../store/courses'
 import { useChatsStore } from '../../store/chats'
@@ -210,6 +211,14 @@ const cardMaterials = computed(() => {
   return admin.media.filter((item) => item.usages.some((u) => courseIds.has(u.course_id)))
 })
 
+// Общий процент прохождения ученика — среднее по всем его тренингам,
+// показывается кольцом рядом с аватаром для быстрого взгляда.
+const cardOverallPercent = computed(() => {
+  const list = cardProgress.value?.courses || []
+  if (!list.length) return 0
+  return Math.round(list.reduce((sum, c) => sum + c.completion_percent, 0) / list.length)
+})
+
 async function goToChat(s) {
   openingChat.value = true
   try {
@@ -339,9 +348,20 @@ function formatSize(bytes) {
 
     <div class="modal-overlay" :class="{ active: cardStudent }" @click="closeCard">
       <div class="modal" style="max-width:640px" v-if="cardStudent" @click.stop>
-        <h3>{{ cardStudent.first_name }} {{ cardStudent.last_name }}</h3>
-        <p class="mod-sub">{{ cardStudent.email }} · {{ cardStudent.phone || 'без телефона' }}</p>
-        <div style="display:flex; gap:10px; align-items:center; margin:12px 0 20px;">
+        <div style="display:flex; align-items:center; gap:16px;">
+          <div
+            style="width:56px; height:56px; border-radius:50%; flex-shrink:0; overflow:hidden; background:var(--navy-soft); display:flex; align-items:center; justify-content:center; font-size:18px; color:var(--gold); font-weight:700;"
+          >
+            <img v-if="cardStudent.avatar" :src="cardStudent.avatar" alt="" style="width:100%; height:100%; object-fit:cover;">
+            <span v-else>{{ (cardStudent.first_name?.[0] || '') + (cardStudent.last_name?.[0] || '') }}</span>
+          </div>
+          <div style="flex:1; min-width:0;">
+            <h3 style="margin:0;">{{ cardStudent.first_name }} {{ cardStudent.last_name }}</h3>
+            <p class="mod-sub" style="margin:2px 0 0;">{{ cardStudent.email }} · {{ cardStudent.phone || 'без телефона' }}</p>
+          </div>
+          <ProgressRing :percent="cardOverallPercent" :size="76" :stroke-width="7" label="прогресс" />
+        </div>
+        <div style="display:flex; gap:10px; align-items:center; margin:16px 0 20px; flex-wrap:wrap;">
           <button
             type="button" class="status-dot status-toggle" :class="cardStudent.is_active_student ? 'active' : 'inactive'"
             @click="toggle(cardStudent)"

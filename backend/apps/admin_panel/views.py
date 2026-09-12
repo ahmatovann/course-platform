@@ -93,7 +93,7 @@ class CreateStudentView(APIView):
         log_action(request, 'created', 'ученик', f'{first_name} {last_name}'.strip() or user.email)
 
         return Response({
-            'student': StudentSerializer(user).data,
+            'student': StudentSerializer(user, context={'request': request}).data,
             'email': user.email,
             'login': user.email,
             'password': password,
@@ -114,7 +114,7 @@ class ToggleStudentStatusView(APIView):
             request, 'toggled', 'ученик',
             f'{user.first_name} {user.last_name}'.strip() + (' → активен' if user.is_active_student else ' → не активен'),
         )
-        return Response(StudentSerializer(user).data)
+        return Response(StudentSerializer(user, context={'request': request}).data)
 
 
 class StudentExtendAccessView(APIView):
@@ -165,7 +165,7 @@ class StudentExtendAccessView(APIView):
             request, 'updated', 'доступ ученика',
             f'{user.first_name} {user.last_name}'.strip() + f' → до {timezone.localtime(new_expiry):%d.%m.%Y}',
         )
-        return Response(StudentSerializer(user).data)
+        return Response(StudentSerializer(user, context={'request': request}).data)
 
 
 class StudentEnrollView(APIView):
@@ -179,7 +179,7 @@ class StudentEnrollView(APIView):
         course = get_object_or_404(Course, pk=request.data.get('course_id'))
         Enrollment.objects.get_or_create(user=student, course=course)
         log_action(request, 'created', 'запись на курс', f'{student.first_name} {student.last_name} → «{course.title}»')
-        return Response(StudentSerializer(student).data, status=status.HTTP_201_CREATED)
+        return Response(StudentSerializer(student, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
     def delete(self, request, pk):
         student = get_object_or_404(User, pk=pk, role=User.Role.STUDENT)
@@ -187,7 +187,7 @@ class StudentEnrollView(APIView):
         course = Course.objects.filter(pk=course_id).first()
         Enrollment.objects.filter(user=student, course_id=course_id).delete()
         log_action(request, 'deleted', 'запись на курс', f'{student.first_name} {student.last_name} ← «{course.title if course else course_id}»')
-        return Response(StudentSerializer(student).data)
+        return Response(StudentSerializer(student, context={'request': request}).data)
 
 
 # ===== Конструктор тренинга (курсы/модули/уроки) =====
