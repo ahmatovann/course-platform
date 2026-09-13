@@ -5,6 +5,7 @@ export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: JSON.parse(localStorage.getItem('user') || 'null'),
     accessToken: localStorage.getItem('access_token') || null,
+    myActivity: [],
   }),
   getters: {
     isAuthenticated: (state) => !!state.accessToken,
@@ -37,6 +38,13 @@ export const useAuthStore = defineStore('auth', {
       const { data } = await client.patch('/profile/', payload)
       this.user = data
       localStorage.setItem('user', JSON.stringify(data))
+      return data
+    },
+    // История событий, касающихся самого ученика (создание аккаунта,
+    // продление доступа, запись/снятие с курса) — показывается в профиле.
+    async fetchMyActivity() {
+      const { data } = await client.get('/profile/activity/')
+      this.myActivity = data
       return data
     },
     async changePassword(newPassword, confirmPassword) {

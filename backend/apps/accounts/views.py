@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from rest_framework import status
+from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -58,6 +58,22 @@ class ProfileView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(UserSerializer(request.user, context={'request': request}).data)
+
+
+class MyActivityView(generics.ListAPIView):
+    """История событий, касающихся самого ученика (его создали, продлили
+    доступ, записали/сняли с курса) — «История» в его личном профиле.
+    Отдельная от админской «Истории» в Настройках, которая показывает всё
+    подряд — здесь только то, что относится к текущему пользователю."""
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        from apps.admin_panel.serializers import AuditLogEntrySerializer
+        return AuditLogEntrySerializer
+
+    def get_queryset(self):
+        from apps.admin_panel.models import AuditLogEntry
+        return AuditLogEntry.objects.filter(student=self.request.user).select_related('actor')
 
 
 class ChangePasswordView(APIView):

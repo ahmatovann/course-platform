@@ -96,6 +96,11 @@ class LessonProgress(models.Model):
 class Test(models.Model):
     module = models.OneToOneField(Module, on_delete=models.CASCADE, related_name='test')
     title = models.CharField(max_length=200)
+    # Если включено — тест нельзя пройти, пока не просмотрены все уроки
+    # этого же модуля (проверяется в TestSubmitSerializer).
+    require_lessons_watched = models.BooleanField(default=True)
+    # 0 означает без ограничений на количество попыток.
+    max_attempts = models.PositiveIntegerField(default=0, help_text='0 означает без ограничений')
 
     def __str__(self):
         return self.title

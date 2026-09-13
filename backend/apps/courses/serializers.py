@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from .models import (
-    Course, Module, Lesson, Material, Test, Question, AnswerOption, TestAttempt, Comment,
+    Course, Module, Lesson, Material, Test, Question, AnswerOption, TestAttempt, Comment, LessonProgress,
 )
 from .services import module_status, is_module_unlocked, course_progress_percent
 
@@ -105,10 +105,26 @@ class QuestionPublicSerializer(serializers.ModelSerializer):
 
 class TestPublicSerializer(serializers.ModelSerializer):
     questions = QuestionPublicSerializer(many=True, read_only=True)
+    lessons_total = serializers.SerializerMethodField()
+    lessons_watched = serializers.SerializerMethodField()
 
     class Meta:
         model = Test
-        fields = ['id', 'title', 'questions']
+        fields = [
+            'id', 'title', 'questions', 'require_lessons_watched', 'max_attempts',
+            'lessons_total', 'lessons_watched',
+        ]
+
+    def get_lessons_total(self, obj):
+        return obj.module.lessons.count()
+
+    def get_lessons_watched(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return 0
+        return LessonProgress.objects.filter(
+            user=request.user, lesson__module=obj.module, watched=True,
+        ).count()
 
 
 class ModuleListSerializer(serializers.ModelSerializer):
@@ -181,6 +197,15 @@ class TestSubmitSerializer(serializers.Serializer):
     def save(self, **kwargs):
         test = self.context['test']
         user = self.context['request'].user
+        if test.require_lessons_watched:
+            lesson_ids = test.module.lessons.values_list('id', flat=True)
+            watched_count = LessonProgress.objects.filter(
+                user=user, lesson_id__in=lesson_ids, watched=True,
+            ).count()
+            if watched_count < test.module.lessons.count():
+                raise serializers.ValidationError('Сначала просмотрите все уроки модуля')
+        if test.max_attempts and TestAttempt.objects.filter(user=user, test=test).count() >= test.max_attempts:
+            raise serializers.ValidationError('Лимит попыток для этого теста исчерпан')
         answers = self.validated_data['answers']
         questions = list(test.questions.all())
         correct = 0

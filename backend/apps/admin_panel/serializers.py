@@ -180,7 +180,7 @@ class AdminTestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Test
-        fields = ['id', 'title', 'module', 'module_title', 'questions']
+        fields = ['id', 'title', 'module', 'module_title', 'questions', 'require_lessons_watched', 'max_attempts']
 
 
 class AdminTestWriteSerializer(serializers.Serializer):
@@ -188,6 +188,8 @@ class AdminTestWriteSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=200)
     module = serializers.PrimaryKeyRelatedField(queryset=Module.objects.all())
     questions = serializers.ListField(child=serializers.DictField(), allow_empty=False)
+    require_lessons_watched = serializers.BooleanField(default=True)
+    max_attempts = serializers.IntegerField(default=0, min_value=0)
 
     def validate_questions(self, value):
         for q in value:
@@ -201,13 +203,19 @@ class AdminTestWriteSerializer(serializers.Serializer):
         return value
 
     def create(self, validated_data):
-        test = Test.objects.create(title=validated_data['title'], module=validated_data['module'])
+        test = Test.objects.create(
+            title=validated_data['title'], module=validated_data['module'],
+            require_lessons_watched=validated_data.get('require_lessons_watched', True),
+            max_attempts=validated_data.get('max_attempts', 0),
+        )
         self._write_questions(test, validated_data['questions'])
         return test
 
     def update(self, instance, validated_data):
         instance.title = validated_data['title']
-        instance.save(update_fields=['title'])
+        instance.require_lessons_watched = validated_data.get('require_lessons_watched', True)
+        instance.max_attempts = validated_data.get('max_attempts', 0)
+        instance.save(update_fields=['title', 'require_lessons_watched', 'max_attempts'])
         instance.questions.all().delete()
         self._write_questions(instance, validated_data['questions'])
         return instance

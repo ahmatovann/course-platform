@@ -1,11 +1,12 @@
 <script setup>
-import { nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Sidebar from '../../components/common/Sidebar.vue'
 import { useCoursesStore } from '../../store/courses'
 import { useUiStore } from '../../store/ui'
 import { useAuthStore } from '../../store/auth'
 import { iconForKind } from '../../utils/fileKind'
+import { embedVideoUrl } from '../../utils/videoEmbed'
 
 import { learnerLinks as links } from '../../nav'
 
@@ -15,6 +16,9 @@ const store = useCoursesStore()
 const ui = useUiStore()
 const auth = useAuthStore()
 const lesson = ref(null)
+// Ссылка на видео (YouTube/Vimeo) — если её можно встроить, показываем
+// прямо на странице плеером, а не просто ссылкой «открыть в новой вкладке».
+const embedUrl = computed(() => (lesson.value ? embedVideoUrl(lesson.value.video_url) : null))
 const draft = ref('')
 const commentsEl = ref(null)
 const videoEl = ref(null)
@@ -152,6 +156,13 @@ function formatTime(iso) {
               <div class="video-watermark" aria-hidden="true">
                 <span v-for="n in 6" :key="n">{{ auth.user?.email }}</span>
               </div>
+            </div>
+            <div v-else-if="embedUrl" class="player-box">
+              <iframe
+                :src="embedUrl" style="width:100%; height:100%; display:block; border:0;"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen @load="markWatchedAuto"
+              ></iframe>
             </div>
             <a v-else-if="lesson.video_url" :href="lesson.video_url" target="_blank" class="player-box" style="text-decoration:none;" @click="markWatchedAuto">
               <div class="play-btn">▶</div>

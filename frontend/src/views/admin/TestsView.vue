@@ -29,7 +29,7 @@ const sortedTests = computed(() => {
 
 const showModal = ref(false)
 const editingId = ref(null)
-const form = reactive({ title: '', module: null, questions: [] })
+const form = reactive({ title: '', module: null, questions: [], require_lessons_watched: true, max_attempts: 0 })
 
 // модули без теста (для создания нового) + модуль редактируемого теста
 const availableModules = ref([])
@@ -67,6 +67,8 @@ function openCreate() {
   form.title = ''
   form.module = availableModules.value[0]?.id || null
   form.questions = [blankQuestion()]
+  form.require_lessons_watched = true
+  form.max_attempts = 0
   showModal.value = true
 }
 
@@ -79,6 +81,8 @@ async function openEdit(test) {
     text: q.text,
     options: q.options.map((o) => ({ text: o.text, is_correct: o.is_correct })),
   }))
+  form.require_lessons_watched = detail.require_lessons_watched
+  form.max_attempts = detail.max_attempts
   showModal.value = true
 }
 
@@ -147,7 +151,10 @@ async function remove(id) {
           <div class="card" v-for="t in sortedTests" :key="t.id">
             <span class="badge ok">Тест</span>
             <h3>{{ t.title }}</h3>
-            <p class="desc">{{ t.module_title }} · {{ t.questions.length }} вопросов</p>
+            <p class="desc">
+              {{ t.module_title }} · {{ t.questions.length }} вопросов
+              <template v-if="t.max_attempts">· лимит {{ t.max_attempts }} попыт.</template>
+            </p>
             <div style="display:flex; gap:8px; margin-top:10px;">
               <button class="dl-btn" @click="openEdit(t)">✎ Редактировать</button>
               <button class="dl-btn" style="border-color:var(--danger); color:var(--danger);" @click="remove(t.id)">Удалить</button>
@@ -168,6 +175,16 @@ async function remove(id) {
           <select v-model="form.module">
             <option v-for="m in availableModules" :key="m.id" :value="m.id">{{ m.label }}</option>
           </select>
+        </div>
+        <div class="field">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" v-model="form.require_lessons_watched">
+            Требовать просмотр всех уроков модуля перед тестом
+          </label>
+        </div>
+        <div class="field">
+          <label>Лимит попыток (0 — без ограничений)</label>
+          <input type="number" min="0" v-model.number="form.max_attempts" style="max-width:120px;">
         </div>
 
         <div v-for="(q, qi) in form.questions" :key="qi" class="q-block">

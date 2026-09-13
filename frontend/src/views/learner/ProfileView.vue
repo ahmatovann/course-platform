@@ -25,8 +25,15 @@ onMounted(async () => {
     coursesStore.fetchFavoriteMaterials(),
     coursesStore.fetchFavoriteLessons(),
     newsStore.fetchFavorites(),
+    auth.fetchMyActivity(),
   ])
 })
+
+const activityLabels = { created: 'создан(а)', updated: 'изменён(а)', deleted: 'удалён(а)', toggled: 'переключён(а)' }
+
+function formatActivityDate(iso) {
+  return new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
 
 // Всё в этих списках уже избранное по определению (пришло из /favorites/),
 // поэтому убираем напрямую — не через toggle, который ждёт поле is_favorite.
@@ -340,6 +347,18 @@ function courseStatus(c) {
               v-if="!coursesStore.favoriteLessons.length && !coursesStore.favoriteMaterials.length && !newsStore.favorites.length"
               style="color:var(--text-dim); font-size:13px;"
             >Пока ничего не добавлено — нажмите ☆ рядом с видео урока, файлом или новостью.</p>
+          </div>
+
+          <div class="mini-card">
+            <h4>История</h4>
+            <p style="color:var(--text-dim); font-size:12.5px; margin:-4px 0 12px;">Что происходило с вашим аккаунтом — сначала новые</p>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <div v-for="entry in auth.myActivity" :key="entry.id" style="font-size:12.5px;">
+                <span style="color:var(--text-dim);">{{ formatActivityDate(entry.created_at) }}</span>
+                — {{ activityLabels[entry.action] || entry.action }} {{ entry.target_type }} «{{ entry.target_repr }}»
+              </div>
+              <p v-if="auth.myActivity.length === 0" style="color:var(--text-dim); font-size:13px;">Пока ничего не записано.</p>
+            </div>
           </div>
         </div>
       </div>
